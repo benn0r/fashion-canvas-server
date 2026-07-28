@@ -2,7 +2,6 @@ import express from "express";
 import helmet from "helmet";
 import multer from "multer";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { UploadRateLimiter } from "./rate-limit.js";
 import type { OutfitResult } from "./types.js";
 
@@ -19,7 +18,7 @@ export function createApp(transformer: OutfitTransformer, limiter = new UploadRa
   app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(express.json({ limit: "32kb" }));
-  const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
+  const publicDirectory = path.resolve(process.cwd(), "public");
   app.use(express.static(publicDirectory));
 
   app.get("/health", (_request, response) => response.json({ status: "ok" }));
