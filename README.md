@@ -44,7 +44,7 @@ Open `http://localhost:3000`. The OpenAI key stays server-side. Run `npm test`, 
 
 The Docker image listens on port 3000 and exposes `/health`. Configure `OPENAI_API_KEY` as a secret environment variable. Optional model settings are documented in `.env.example`.
 
-The Gitea workflow keeps build, unit test, browser test, and image publishing in separate jobs. Configure repository variable `CONTAINER_REGISTRY` and secrets `REGISTRY_USERNAME` and `REGISTRY_PASSWORD`. Coolify deployments are triggered manually after a successful pipeline.
+The Gitea workflow keeps build, unit test, browser test, and image publishing in separate jobs. It authenticates to Gitea's container registry with the built-in per-run token, so no custom registry secrets are required. Coolify deployments are triggered manually after a successful pipeline and pull the published image rather than building source.
 
 ## Privacy
 
