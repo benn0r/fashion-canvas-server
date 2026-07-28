@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Fashion Canvas — Outfit Studio</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/responsive.css">
+</head>
+<body>
+  <header><a class="brand" href="/"><span>FC</span> Fashion Canvas</a><div class="status"><i></i> API online</div></header>
+  <main>
+    <section class="hero"><p class="eyebrow">AI OUTFIT EXTRACTION</p><h1>From mirror selfie<br>to <em>editorial canvas.</em></h1><p>Upload a look. Get a stylized, person-free outfit composition and every individual piece—labeled and ready to use.</p></section>
+    <section class="workspace">
+      <form id="upload-form"><label id="dropzone" class="dropzone"><input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" required><div class="upload-icon">↥</div><strong>Drop your mirror selfie</strong><small>or click to browse · JPEG, PNG, WebP or HEIC · max 12 MB</small><img id="preview" alt="Selected selfie preview"></label><button id="submit" type="submit">Create outfit canvas <span>→</span></button><p id="message" role="status"></p></form>
+      <aside><div class="aside-head"><div><p class="eyebrow">LIVE ACTIVITY</p><h2>Client limits</h2></div><button id="refresh" type="button" aria-label="Refresh">↻</button></div><p class="aside-copy">10 uploads per IP in each rolling 5-minute window.</p><div id="clients" class="clients"><p class="empty">No uploads in this process yet.</p></div></aside>
+    </section>
+    <section id="results" class="results" hidden><div class="section-title"><div><p class="eyebrow">THE RESULT</p><h2>Your outfit, reimagined</h2></div><span id="piece-count"></span></div><div class="outfit-card"><img id="styled-outfit" alt="Stylized complete outfit"><div><p class="eyebrow">COMPLETE LOOK</p><h3>Editorial outfit canvas</h3><p>A polished, person-free composition preserving the original layers, colors and details.</p></div></div><div id="pieces" class="piece-grid"></div></section>
+  </main><footer>Fashion Canvas · Private debug studio</footer><script src="/app.js" defer></script>
+</body></html>

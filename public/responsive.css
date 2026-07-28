@@ -1,0 +1,4 @@
+.hero h1 {
+  font-size: clamp(46px, 6vw, 72px);
+  line-height: .98;
+}
