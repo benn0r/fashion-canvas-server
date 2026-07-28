@@ -39,20 +39,31 @@ jobs:
     if: gitea.event_name == 'push'
     needs: [build, test, test-e2e]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
-      - name: Resolve Gitea registry
-        id: registry
+      - name: Log in to Gitea Container Registry
+        shell: sh
         env:
           GITEA_SERVER_URL: ${{ gitea.server_url }}
-        run: echo "host=${GITEA_SERVER_URL#https://}" >> "$GITHUB_OUTPUT"
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ steps.registry.outputs.host }}
-          username: ${{ gitea.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.registry.outputs.host }}/${{ gitea.repository }}:${{ gitea.sha }},${{ steps.registry.outputs.host }}/${{ gitea.repository }}:latest
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          REGISTRY_USERNAME: ${{ gitea.repository_owner }}
+        run: |
+          registry="${GITEA_SERVER_URL#*://}"
+          printf '%s' "${REGISTRY_TOKEN}" \
+            | docker login "${registry}" --username "${REGISTRY_USERNAME}" --password-stdin
+      - name: Build and push image
+        shell: sh
+        env:
+          GITEA_SERVER_URL: ${{ gitea.server_url }}
+          REGISTRY_OWNER: ${{ gitea.repository_owner }}
+          SOURCE_COMMIT: ${{ gitea.sha }}
+        run: |
+          registry="${GITEA_SERVER_URL#*://}"
+          image="${registry}/${REGISTRY_OWNER}/fashion-canvas-server"
+          docker build --tag "${image}:${SOURCE_COMMIT}" --tag "${image}:latest" .
+          docker push "${image}:${SOURCE_COMMIT}"
+          docker push "${image}:latest"
