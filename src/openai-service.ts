@@ -1,6 +1,7 @@
 import OpenAI, { toFile } from "openai";
 import sharp from "sharp";
 import { z } from "zod";
+import { logError, logEvent } from "./log.js";
 import type { OutfitResult } from "./types.js";
 
 const analysisSchema = z.object({
@@ -52,31 +53,63 @@ export class OpenAIOutfitService {
     this.inputMaxDimension = Number(process.env.INPUT_MAX_DIMENSION ?? 1280);
   }
 
-  async transform(buffer: Buffer, mimeType: string): Promise<OutfitResult> {
+  async transform(buffer: Buffer, mimeType: string, context?: { requestId: string }): Promise<OutfitResult> {
+    const requestId = context?.requestId ?? "untracked";
+    const transformStartedAt = Date.now();
+    const inputMetadata = await sharp(buffer).metadata();
+    logEvent("image_resize_started", {
+      requestId,
+      inputBytes: buffer.length,
+      inputWidth: inputMetadata.width,
+      inputHeight: inputMetadata.height,
+      maxDimension: this.inputMaxDimension,
+    });
     const normalized = await sharp(buffer)
       .rotate()
       .resize({ width: this.inputMaxDimension, height: this.inputMaxDimension, fit: "inside", withoutEnlargement: true })
       .jpeg({ quality: 85 })
       .toBuffer();
+    const normalizedMetadata = await sharp(normalized).metadata();
+    logEvent("image_resize_completed", {
+      requestId,
+      outputBytes: normalized.length,
+      outputWidth: normalizedMetadata.width,
+      outputHeight: normalizedMetadata.height,
+    });
     const dataUrl = `data:image/jpeg;base64,${normalized.toString("base64")}`;
+    const analysisStartedAt = Date.now();
+    logEvent("openai_analysis_sent", { requestId, model: this.visionModel, detail: "high" });
+    logEvent("openai_analysis_waiting", { requestId });
     const analysis = await this.client.responses.create({
       model: this.visionModel,
       input: [{ role: "user", content: [{ type: "input_text", text: SYSTEM_PROMPT }, { type: "input_image", image_url: dataUrl, detail: "high" }] }],
       text: { format: { type: "json_schema", name: "outfit_analysis", strict: true, schema: responseSchema } },
     });
     const parsed = analysisSchema.parse(JSON.parse(analysis.output_text));
+    logEvent("openai_analysis_completed", { requestId, pieces: parsed.pieces.length, durationMs: Date.now() - analysisStartedAt });
     const source = await toFile(normalized, "mirror-selfie.jpg", { type: mimeType || "image/jpeg" });
-    const edit = async (prompt: string) => {
-      const result = await this.client.images.edit({ model: this.imageModel, image: source, prompt, size: "1024x1024", quality: "medium", output_format: "jpeg" });
-      const image = result.data?.[0]?.b64_json;
-      if (!image) throw new Error("OpenAI returned no generated image");
-      return `data:image/jpeg;base64,${image}`;
+    const edit = async (prompt: string, output: string) => {
+      const startedAt = Date.now();
+      logEvent("openai_image_sent", { requestId, output, model: this.imageModel, size: "1024x1024", quality: "low" });
+      logEvent("openai_image_waiting", { requestId, output });
+      try {
+        const result = await this.client.images.edit({ model: this.imageModel, image: source, prompt, size: "1024x1024", quality: "low", output_format: "jpeg" });
+        const image = result.data?.[0]?.b64_json;
+        if (!image) throw new Error("OpenAI returned no generated image");
+        logEvent("openai_image_completed", { requestId, output, durationMs: Date.now() - startedAt });
+        return `data:image/jpeg;base64,${image}`;
+      } catch (error) {
+        logError("openai_image_failed", { requestId, output, durationMs: Date.now() - startedAt, message: error instanceof Error ? error.message : "Unexpected error" });
+        throw error;
+      }
     };
 
+    logEvent("openai_generation_batch_started", { requestId, images: parsed.pieces.length + 1 });
     const [styledOutfit, ...pieceImages] = await Promise.all([
-      edit(STYLE_PROMPT),
-      ...parsed.pieces.map((piece) => edit(`Isolate exactly this outfit piece from the uploaded selfie: ${piece.label} — ${piece.description}. Show only this single item, laid flat or on an invisible form, with no person, body parts, hanger, phone, room, other garments, or text. Preserve its exact color, material, pattern, cut, and details. Centered premium stylized product photography on a warm off-white seamless background with a soft natural shadow.`)),
+      edit(STYLE_PROMPT, "complete_outfit"),
+      ...parsed.pieces.map((piece, index) => edit(`Isolate exactly this outfit piece from the uploaded selfie: ${piece.label} — ${piece.description}. Show only this single item, laid flat or on an invisible form, with no person, body parts, hanger, phone, room, other garments, or text. Preserve its exact color, material, pattern, cut, and details. Centered premium stylized product photography on a warm off-white seamless background with a soft natural shadow.`, `piece_${index + 1}_${piece.category}`)),
     ]);
+    logEvent("openai_generation_batch_completed", { requestId, images: pieceImages.length + 1, durationMs: Date.now() - transformStartedAt });
 
     return {
       styledOutfit,

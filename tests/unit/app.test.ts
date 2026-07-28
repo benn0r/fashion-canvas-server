@@ -11,6 +11,7 @@ test("health and debug endpoints expose service state", async () => {
   const config = (await request(app).get("/api/debug/config")).body;
   assert.equal(config.inputMaxDimension, 1280);
   assert.equal(config.outputSize, "1024x1024");
+  assert.equal(config.outputQuality, "low");
   const debug = (await request(app).get("/api/debug/rate-limits")).body;
   assert.equal(debug.limit, 10);
   assert.deepEqual(debug.clients, []);
