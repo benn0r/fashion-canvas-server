@@ -42,16 +42,22 @@ export class OpenAIOutfitService {
   private readonly client: OpenAI;
   private readonly visionModel: string;
   private readonly imageModel: string;
+  private readonly inputMaxDimension: number;
 
   constructor(apiKey = process.env.OPENAI_API_KEY) {
     if (!apiKey) throw new Error("OPENAI_API_KEY is required");
     this.client = new OpenAI({ apiKey });
     this.visionModel = process.env.OPENAI_VISION_MODEL ?? "gpt-4.1-mini";
     this.imageModel = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2";
+    this.inputMaxDimension = Number(process.env.INPUT_MAX_DIMENSION ?? 1280);
   }
 
   async transform(buffer: Buffer, mimeType: string): Promise<OutfitResult> {
-    const normalized = await sharp(buffer).rotate().resize({ width: 2048, height: 2048, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 90 }).toBuffer();
+    const normalized = await sharp(buffer)
+      .rotate()
+      .resize({ width: this.inputMaxDimension, height: this.inputMaxDimension, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer();
     const dataUrl = `data:image/jpeg;base64,${normalized.toString("base64")}`;
     const analysis = await this.client.responses.create({
       model: this.visionModel,

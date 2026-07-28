@@ -22,6 +22,14 @@ export function createApp(transformer: OutfitTransformer, limiter = new UploadRa
   app.use(express.static(publicDirectory));
 
   app.get("/health", (_request, response) => response.json({ status: "ok" }));
+  app.get("/api/debug/config", (_request, response) => response.json({
+    visionModel: process.env.OPENAI_VISION_MODEL ?? "gpt-4.1-mini",
+    imageModel: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2",
+    inputMaxDimension: Number(process.env.INPUT_MAX_DIMENSION ?? 1280),
+    outputSize: "1024x1024",
+    maxUploadBytes: 12 * 1024 * 1024,
+    rateLimit: { uploads: limiter.limit, windowSeconds: limiter.windowMs / 1000 },
+  }));
   app.get("/api/debug/rate-limits", (_request, response) => response.json({ limit: limiter.limit, windowSeconds: limiter.windowMs / 1000, clients: limiter.snapshots() }));
   app.post("/api/outfits", limiter.middleware, upload.single("photo"), async (request, response, next) => {
     try {

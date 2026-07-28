@@ -8,6 +8,9 @@ const transformer = { async transform() { return { styledOutfit: "data:image/jpe
 test("health and debug endpoints expose service state", async () => {
   const app = createApp(transformer);
   assert.deepEqual((await request(app).get("/health")).body, { status: "ok" });
+  const config = (await request(app).get("/api/debug/config")).body;
+  assert.equal(config.inputMaxDimension, 1280);
+  assert.equal(config.outputSize, "1024x1024");
   const debug = (await request(app).get("/api/debug/rate-limits")).body;
   assert.equal(debug.limit, 10);
   assert.deepEqual(debug.clients, []);
