@@ -1,9 +1,8 @@
 import { test, expect } from "@playwright/test";
 
-test("debug console exposes the request builder and runtime telemetry", async ({ page }) => {
+test("debug studio explains upload and displays rate limits", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Image pipeline debug console/ })).toBeVisible();
-  await expect(page.getByText("CLIENT_RATE_LIMITS")).toBeVisible();
-  await expect(page.getByRole("button", { name: /RUN_PIPELINE/ })).toBeVisible();
-  await expect(page.getByText("input_long_edge")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /From mirror selfie/ })).toBeVisible();
+  await expect(page.getByText("10 uploads per IP")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Create outfit canvas/ })).toBeVisible();
 });
