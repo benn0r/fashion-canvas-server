@@ -3,3 +3,6 @@
   line-height: .98;
 }
 
+@media(max-width:760px) {
+  .diagnostic-grid { grid-template-columns: 1fr; }
+}

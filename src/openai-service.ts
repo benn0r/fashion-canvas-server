@@ -2,6 +2,7 @@ import OpenAI, { toFile } from "openai";
 import sharp from "sharp";
 import { z } from "zod";
 import { logError, logEvent } from "./log.js";
+import { estimateImageCost, estimateVisionCost, type TokenUsage } from "./pricing.js";
 import type { OutfitResult } from "./types.js";
 
 const analysisSchema = z.object({
@@ -56,6 +57,7 @@ export class OpenAIOutfitService {
   async transform(buffer: Buffer, mimeType: string, context?: { requestId: string }): Promise<OutfitResult> {
     const requestId = context?.requestId ?? "untracked";
     const transformStartedAt = Date.now();
+    const resizeStartedAt = Date.now();
     const inputMetadata = await sharp(buffer).metadata();
     logEvent("image_resize_started", {
       requestId,
@@ -76,6 +78,7 @@ export class OpenAIOutfitService {
       outputWidth: normalizedMetadata.width,
       outputHeight: normalizedMetadata.height,
     });
+    const resizeDuration = Date.now() - resizeStartedAt;
     const dataUrl = `data:image/jpeg;base64,${normalized.toString("base64")}`;
     const analysisStartedAt = Date.now();
     logEvent("openai_analysis_sent", { requestId, model: this.visionModel, detail: "high" });
@@ -86,8 +89,11 @@ export class OpenAIOutfitService {
       text: { format: { type: "json_schema", name: "outfit_analysis", strict: true, schema: responseSchema } },
     });
     const parsed = analysisSchema.parse(JSON.parse(analysis.output_text));
-    logEvent("openai_analysis_completed", { requestId, pieces: parsed.pieces.length, durationMs: Date.now() - analysisStartedAt });
+    const analysisDuration = Date.now() - analysisStartedAt;
+    logEvent("openai_analysis_completed", { requestId, pieces: parsed.pieces.length, durationMs: analysisDuration });
     const source = await toFile(normalized, "mirror-selfie.jpg", { type: mimeType || "image/jpeg" });
+    const imageTimings: Array<{ output: string; duration: number }> = [];
+    const imageUsages: TokenUsage[] = [];
     const edit = async (prompt: string, output: string) => {
       const startedAt = Date.now();
       logEvent("openai_image_sent", { requestId, output, model: this.imageModel, size: "1024x1024", quality: "low" });
@@ -96,7 +102,11 @@ export class OpenAIOutfitService {
         const result = await this.client.images.edit({ model: this.imageModel, image: source, prompt, size: "1024x1024", quality: "low", output_format: "jpeg" });
         const image = result.data?.[0]?.b64_json;
         if (!image) throw new Error("OpenAI returned no generated image");
-        logEvent("openai_image_completed", { requestId, output, durationMs: Date.now() - startedAt });
+        const duration = Date.now() - startedAt;
+        imageTimings.push({ output, duration });
+        const usage = (result as typeof result & { usage?: { input_tokens: number; output_tokens: number; input_tokens_details?: { image_tokens?: number; text_tokens?: number } } }).usage;
+        if (usage) imageUsages.push({ inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, imageInputTokens: usage.input_tokens_details?.image_tokens, textInputTokens: usage.input_tokens_details?.text_tokens });
+        logEvent("openai_image_completed", { requestId, output, durationMs: duration, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens });
         return `data:image/jpeg;base64,${image}`;
       } catch (error) {
         logError("openai_image_failed", { requestId, output, durationMs: Date.now() - startedAt, message: error instanceof Error ? error.message : "Unexpected error" });
@@ -104,16 +114,42 @@ export class OpenAIOutfitService {
       }
     };
 
+    const generationStartedAt = Date.now();
     logEvent("openai_generation_batch_started", { requestId, images: parsed.pieces.length + 1 });
     const [styledOutfit, ...pieceImages] = await Promise.all([
       edit(STYLE_PROMPT, "complete_outfit"),
       ...parsed.pieces.map((piece, index) => edit(`Isolate exactly this outfit piece from the uploaded selfie: ${piece.label} — ${piece.description}. Show only this single item, laid flat or on an invisible form, with no person, body parts, hanger, phone, room, other garments, or text. Preserve its exact color, material, pattern, cut, and details. Centered premium stylized product photography on a warm off-white seamless background with a soft natural shadow.`, `piece_${index + 1}_${piece.category}`)),
     ]);
-    logEvent("openai_generation_batch_completed", { requestId, images: pieceImages.length + 1, durationMs: Date.now() - transformStartedAt });
+    const generationDuration = Date.now() - generationStartedAt;
+    logEvent("openai_generation_batch_completed", { requestId, images: pieceImages.length + 1, durationMs: generationDuration });
+
+    const analysisUsage = { inputTokens: analysis.usage?.input_tokens ?? 0, outputTokens: analysis.usage?.output_tokens ?? 0, totalTokens: analysis.usage?.total_tokens ?? 0 };
+    const generationUsage = imageUsages.reduce<{ inputTokens: number; outputTokens: number; totalTokens: number }>((total, usage) => ({ inputTokens: total.inputTokens + usage.inputTokens, outputTokens: total.outputTokens + usage.outputTokens, totalTokens: total.totalTokens + usage.inputTokens + usage.outputTokens }), { inputTokens: 0, outputTokens: 0, totalTokens: 0 });
+    const imageCount = pieceImages.length + 1;
+    const hasCompleteImageUsage = imageUsages.length === imageCount;
+    const imageCosts = hasCompleteImageUsage ? imageUsages.map(usage => estimateImageCost(usage)) : Array.from({ length: imageCount }, () => estimateImageCost());
+    const analysisCost = estimateVisionCost(this.visionModel, analysisUsage);
+    const generationCost = imageCosts.reduce((sum, cost) => sum + cost.usd, 0);
 
     return {
       styledOutfit,
       pieces: parsed.pieces.map((piece, index) => ({ id: `${piece.category}-${index + 1}`, ...piece, image: pieceImages[index]! })),
+      debug: {
+        requestId,
+        models: { vision: this.visionModel, image: this.imageModel },
+        input: { originalBytes: buffer.length, originalWidth: inputMetadata.width, originalHeight: inputMetadata.height, normalizedBytes: normalized.length, normalizedWidth: normalizedMetadata.width, normalizedHeight: normalizedMetadata.height, mimeType },
+        output: { count: imageCount, size: "1024x1024", quality: "low", format: "jpeg" },
+        timingMs: { resize: resizeDuration, analysis: analysisDuration, generation: generationDuration, total: Date.now() - transformStartedAt, images: imageTimings.sort((a, b) => a.output.localeCompare(b.output)) },
+        usage: { analysis: analysisUsage, generation: { available: hasCompleteImageUsage, ...generationUsage } },
+        cost: {
+          currency: "USD",
+          estimatedTotal: (analysisCost ?? 0) + generationCost,
+          analysis: analysisCost,
+          generation: generationCost,
+          includesImageInputTokens: imageCosts.every(cost => cost.includesInput),
+          note: hasCompleteImageUsage ? "Estimate from API token usage and standard prices." : "Image-edit token usage was unavailable; generation uses the documented low-quality 1024×1024 output estimate and excludes image-edit input tokens.",
+        },
+      },
     };
   }
 }

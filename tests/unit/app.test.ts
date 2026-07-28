@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import { createApp } from "../../src/app.js";
 
-const transformer = { async transform() { return { styledOutfit: "data:image/jpeg;base64,AA==", pieces: [{ id: "top-1", label: "Knit", description: "Red knit top", category: "top", image: "data:image/jpeg;base64,AA==" }] }; } };
+const transformer = { async transform() { return { styledOutfit: "data:image/jpeg;base64,AA==", pieces: [{ id: "top-1", label: "Knit", description: "Red knit top", category: "top", image: "data:image/jpeg;base64,AA==" }], debug: { cost: { estimatedTotal: 0.012 } } }; } };
 
 test("health and debug endpoints expose service state", async () => {
   const app = createApp(transformer);
@@ -23,4 +23,5 @@ test("outfit endpoint validates and transforms an image", async () => {
   const result = await request(app).post("/api/outfits").attach("photo", Buffer.from("fake"), { filename: "look.jpg", contentType: "image/jpeg" });
   assert.equal(result.status, 200);
   assert.equal(result.body.pieces[0].label, "Knit");
+  assert.equal(result.body.debug.cost.estimatedTotal, 0.012);
 });

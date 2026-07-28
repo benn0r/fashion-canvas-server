@@ -30,6 +30,8 @@ Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of
 
 Each client IP may start 10 upload requests in a rolling five-minute window. `GET /api/debug/rate-limits` returns the current in-process counters used by the dashboard. Deploy one application replica unless this store is replaced with a shared store such as Redis.
 
+Each successful debug result also shows the OpenAI models, image dimensions and byte sizes, token usage when returned, stage timings, output settings, request ID, and estimated USD cost. Cost is an estimate based on standard API pricing rather than an invoice total; when image-edit token usage is unavailable, the estimate excludes those input tokens and says so in the UI.
+
 ## Local development
 
 ```sh
