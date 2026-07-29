@@ -20,9 +20,13 @@ test("health and debug endpoints expose service state", async () => {
 
 test("outfit endpoint validates and transforms an image", async () => {
   const app = createApp(transformer);
+  const preflight = await request(app).options("/api/outfits").set("Origin", "http://localhost:8081").set("Access-Control-Request-Method", "POST");
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers["access-control-allow-origin"], "*");
   assert.equal((await request(app).post("/api/outfits")).status, 400);
   const result = await request(app).post("/api/outfits").attach("photo", Buffer.from("fake"), { filename: "look.jpg", contentType: "image/jpeg" });
   assert.equal(result.status, 200);
+  assert.equal(result.headers["access-control-allow-origin"], "*");
   assert.equal(result.body.pieces[0].label, "Knit");
   assert.equal(result.body.debug.cost.estimatedTotal, 0.012);
 });

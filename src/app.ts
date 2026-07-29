@@ -23,6 +23,15 @@ export function createApp(transformer: OutfitTransformer, limiter = new UploadRa
   const publicDirectory = path.resolve(process.cwd(), "public");
   app.use(express.static(publicDirectory));
 
+  app.use("/api/outfits", (request, response, next) => {
+    response.setHeader("Access-Control-Allow-Origin", "*");
+    response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    response.setHeader("Access-Control-Max-Age", "86400");
+    if (request.method === "OPTIONS") return response.sendStatus(204);
+    next();
+  });
+
   app.get("/health", (_request, response) => response.json({ status: "ok" }));
   app.get("/api/debug/config", (_request, response) => response.json({
     visionModel: process.env.OPENAI_VISION_MODEL ?? "gpt-4.1-mini",
