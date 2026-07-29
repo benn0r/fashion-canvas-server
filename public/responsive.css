@@ -1,8 +1,10 @@
 .hero h1 {
   font-size: clamp(46px, 6vw, 72px);
-  line-height: .98;
+  line-height: 0.98;
 }
 
-@media(max-width:760px) {
-  .diagnostic-grid { grid-template-columns: 1fr; }
+@media (max-width: 760px) {
+  .diagnostic-grid {
+    grid-template-columns: 1fr;
+  }
 }

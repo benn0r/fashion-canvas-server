@@ -13,7 +13,10 @@ test("shows a crop editor for a browser-readable reference image", async ({ page
   await page.locator("#photo").setInputFiles({
     name: "fantasy-look.png",
     mimeType: "image/png",
-    buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==", "base64"),
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==",
+      "base64",
+    ),
   });
   await expect(page.getByRole("heading", { name: "Crop OpenAI reference" })).toBeVisible();
   await expect(page.getByText(/Source crop 2×2/)).toBeVisible();

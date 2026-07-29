@@ -27,7 +27,9 @@ export class UploadRateLimiter {
       entry.lastSeenAt = current;
       this.entries.set(ip, entry);
       response.setHeader("Retry-After", Math.max(1, Math.ceil((resetAt - current) / 1000)));
-      response.status(429).json({ error: "Upload limit reached. Try again after the five-minute window resets." });
+      response
+        .status(429)
+        .json({ error: "Upload limit reached. Try again after the five-minute window resets." });
       return;
     }
 
