@@ -56,4 +56,6 @@ The browser offers an adjustable edge crop and submits a new cropped JPEG with a
 
 ## License
 
-MIT
+Fashion Canvas Server is available under the [PolyForm Noncommercial License 1.0.0](LICENSE). It is free to use, modify, and share for noncommercial purposes. Commercial use or monetization is reserved to the licensor and requires a separate commercial license.
+
+This is a source-available license, not an OSI-approved open-source license.
