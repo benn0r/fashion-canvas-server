@@ -52,7 +52,7 @@ The Gitea workflow keeps build, unit test, browser test, and image publishing in
 
 Uploaded photos are held in memory only for processing and are not persisted by this service. They are sent to OpenAI to analyze and generate the requested images. Review the applicable OpenAI data controls before production use and add authentication before exposing operational diagnostics publicly.
 
-Input photos are normalized to a 1280px maximum long edge at JPEG quality 85 before being sent to OpenAI. Override `INPUT_MAX_DIMENSION` to trade input-image cost and latency against fine garment detail. Generated outputs use GPT Image's low-quality mode at 1024×1024 to minimize generation cost.
+The browser offers an adjustable edge crop and submits a new cropped JPEG with a maximum 1280px long edge, so discarded room and mirror pixels are never sent to OpenAI. The server repeats the same no-upscaling normalization as a safeguard. Override `INPUT_MAX_DIMENSION` to trade input-image cost and latency against fine garment detail. Generated outputs use GPT Image's low-quality mode: 1024×1024 for the complete outfit and 816×816 for each individual piece.
 
 ## License
 

@@ -1,0 +1,11 @@
+.crop-editor { margin-top: 18px; padding: 18px; border: 1px solid var(--line); background: #faf7f0; }
+.crop-editor[hidden] { display: none; }
+.crop-editor h3 { margin: 0; font: 22px Georgia, serif; }
+.crop-editor > p { color: #777167; font-size: 12px; line-height: 1.5; }
+.crop-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(180px, .7fr); gap: 18px; align-items: start; }
+#crop-preview { display: block; width: 100%; max-height: 360px; object-fit: contain; background: #e8e1d5; border: 1px solid var(--line); }
+.crop-controls { display: grid; gap: 12px; }
+.crop-controls label { display: grid; grid-template-columns: 54px 1fr 32px; gap: 8px; align-items: center; font: 10px ui-monospace, monospace; text-transform: uppercase; letter-spacing: .08em; }
+.crop-controls output { text-align: right; }
+.crop-meta { margin: 14px 0 0; color: var(--sage); font: 11px ui-monospace, monospace; }
+@media(max-width:760px) { .crop-layout { grid-template-columns: 1fr; } }

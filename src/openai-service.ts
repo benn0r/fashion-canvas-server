@@ -94,12 +94,12 @@ export class OpenAIOutfitService {
     const source = await toFile(normalized, "mirror-selfie.jpg", { type: mimeType || "image/jpeg" });
     const imageTimings: Array<{ output: string; duration: number }> = [];
     const imageUsages: TokenUsage[] = [];
-    const edit = async (prompt: string, output: string) => {
+    const edit = async (prompt: string, output: string, size: string) => {
       const startedAt = Date.now();
-      logEvent("openai_image_sent", { requestId, output, model: this.imageModel, size: "1024x1024", quality: "low" });
+      logEvent("openai_image_sent", { requestId, output, model: this.imageModel, size, quality: "low" });
       logEvent("openai_image_waiting", { requestId, output });
       try {
-        const result = await this.client.images.edit({ model: this.imageModel, image: source, prompt, size: "1024x1024", quality: "low", output_format: "jpeg" });
+        const result = await this.client.images.edit({ model: this.imageModel, image: source, prompt, size: size as "1024x1024", quality: "low", output_format: "jpeg" });
         const image = result.data?.[0]?.b64_json;
         if (!image) throw new Error("OpenAI returned no generated image");
         const duration = Date.now() - startedAt;
@@ -117,8 +117,8 @@ export class OpenAIOutfitService {
     const generationStartedAt = Date.now();
     logEvent("openai_generation_batch_started", { requestId, images: parsed.pieces.length + 1 });
     const [styledOutfit, ...pieceImages] = await Promise.all([
-      edit(STYLE_PROMPT, "complete_outfit"),
-      ...parsed.pieces.map((piece, index) => edit(`Isolate exactly this outfit piece from the uploaded selfie: ${piece.label} — ${piece.description}. Show only this single item, laid flat or on an invisible form, with no person, body parts, hanger, phone, room, other garments, or text. Preserve its exact color, material, pattern, cut, and details. Centered premium stylized product photography on a warm off-white seamless background with a soft natural shadow.`, `piece_${index + 1}_${piece.category}`)),
+      edit(STYLE_PROMPT, "complete_outfit", "1024x1024"),
+      ...parsed.pieces.map((piece, index) => edit(`Isolate exactly this outfit piece from the uploaded selfie: ${piece.label} — ${piece.description}. Show only this single item, laid flat or on an invisible form, with no person, body parts, hanger, phone, room, other garments, or text. Preserve its exact color, material, pattern, cut, and details. Centered premium stylized product photography on a warm off-white seamless background with a soft natural shadow.`, `piece_${index + 1}_${piece.category}`, "816x816")),
     ]);
     const generationDuration = Date.now() - generationStartedAt;
     logEvent("openai_generation_batch_completed", { requestId, images: pieceImages.length + 1, durationMs: generationDuration });
@@ -127,7 +127,7 @@ export class OpenAIOutfitService {
     const generationUsage = imageUsages.reduce<{ inputTokens: number; outputTokens: number; totalTokens: number }>((total, usage) => ({ inputTokens: total.inputTokens + usage.inputTokens, outputTokens: total.outputTokens + usage.outputTokens, totalTokens: total.totalTokens + usage.inputTokens + usage.outputTokens }), { inputTokens: 0, outputTokens: 0, totalTokens: 0 });
     const imageCount = pieceImages.length + 1;
     const hasCompleteImageUsage = imageUsages.length === imageCount;
-    const imageCosts = hasCompleteImageUsage ? imageUsages.map(usage => estimateImageCost(usage)) : Array.from({ length: imageCount }, () => estimateImageCost());
+    const imageCosts = hasCompleteImageUsage ? imageUsages.map(usage => estimateImageCost(usage)) : [estimateImageCost(undefined, "1024x1024"), ...pieceImages.map(() => estimateImageCost(undefined, "816x816"))];
     const analysisCost = estimateVisionCost(this.visionModel, analysisUsage);
     const generationCost = imageCosts.reduce((sum, cost) => sum + cost.usd, 0);
 
@@ -138,7 +138,7 @@ export class OpenAIOutfitService {
         requestId,
         models: { vision: this.visionModel, image: this.imageModel },
         input: { originalBytes: buffer.length, originalWidth: inputMetadata.width, originalHeight: inputMetadata.height, normalizedBytes: normalized.length, normalizedWidth: normalizedMetadata.width, normalizedHeight: normalizedMetadata.height, mimeType },
-        output: { count: imageCount, size: "1024x1024", quality: "low", format: "jpeg" },
+        output: { count: imageCount, fullOutfitSize: "1024x1024", pieceSize: "816x816", quality: "low", format: "jpeg" },
         timingMs: { resize: resizeDuration, analysis: analysisDuration, generation: generationDuration, total: Date.now() - transformStartedAt, images: imageTimings.sort((a, b) => a.output.localeCompare(b.output)) },
         usage: { analysis: analysisUsage, generation: { available: hasCompleteImageUsage, ...generationUsage } },
         cost: {
@@ -147,7 +147,7 @@ export class OpenAIOutfitService {
           analysis: analysisCost,
           generation: generationCost,
           includesImageInputTokens: imageCosts.every(cost => cost.includesInput),
-          note: hasCompleteImageUsage ? "Estimate from API token usage and standard prices." : "Image-edit token usage was unavailable; generation uses the documented low-quality 1024×1024 output estimate and excludes image-edit input tokens.",
+          note: hasCompleteImageUsage ? "Estimate from API token usage and standard prices." : "Image-edit token usage was unavailable; generation uses a pixel-scaled low-quality output estimate and excludes image-edit input tokens.",
         },
       },
     };

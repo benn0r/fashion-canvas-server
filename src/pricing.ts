@@ -15,8 +15,11 @@ export function estimateVisionCost(model: string, usage: TokenUsage) {
   return (usage.inputTokens * price.input + usage.outputTokens * price.output) / 1_000_000;
 }
 
-export function estimateImageCost(usage?: TokenUsage) {
-  if (!usage) return { usd: 0.006, includesInput: false };
+export function estimateImageCost(usage?: TokenUsage, size = "1024x1024") {
+  if (!usage) {
+    const [width = 1024, height = 1024] = size.split("x").map(Number);
+    return { usd: 0.006 * (width * height) / (1024 * 1024), includesInput: false };
+  }
   const imageInput = usage.imageInputTokens ?? 0;
   const textInput = usage.textInputTokens ?? Math.max(0, usage.inputTokens - imageInput);
   return { usd: (imageInput * 8 + textInput * 5 + usage.outputTokens * 30) / 1_000_000, includesInput: true };
