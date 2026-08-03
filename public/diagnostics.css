@@ -114,6 +114,10 @@
   color: #417052;
   background: #e8f1e8;
 }
+.history-status.processing {
+  color: #82651d;
+  background: #f8f0d7;
+}
 .history-status.failed {
   color: #a14332;
   background: #f7e9e5;

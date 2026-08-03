@@ -92,6 +92,13 @@ export function createApp(
           mimeType: request.file.mimetype,
           bytes: request.file.size,
         });
+        database.recordUpload({
+          requestId,
+          ip,
+          createdAt: startedAt,
+          appVersion,
+          status: "processing",
+        });
         const result = await transformer.transform(request.file.buffer, request.file.mimetype, {
           requestId,
         });

@@ -71,7 +71,7 @@ export interface UploadHistoryEntry {
   ip: string;
   timestamp: string;
   appVersion: string;
-  status: "completed" | "failed";
+  status: "processing" | "completed" | "failed";
   tokens: {
     analysisInput: number | null;
     analysisOutput: number | null;

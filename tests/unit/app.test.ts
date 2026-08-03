@@ -84,3 +84,43 @@ test("records failed transformations without storing image contents", async () =
   assert.equal(JSON.stringify(history).includes("secret-image-bytes"), false);
   database.close();
 });
+
+test("shows an upload as processing before the transformation completes", async () => {
+  const database = new AppDatabase(":memory:");
+  let releaseTransform!: () => void;
+  let signalStarted!: () => void;
+  const transformStarted = new Promise<void>((resolve) => {
+    signalStarted = resolve;
+  });
+  const transformReleased = new Promise<void>((resolve) => {
+    releaseTransform = resolve;
+  });
+  const app = createApp(
+    {
+      async transform() {
+        signalStarted();
+        await transformReleased;
+        return transformer.transform();
+      },
+    },
+    database,
+  );
+  const responsePromise = request(app)
+    .post("/api/outfits")
+    .attach("photo", Buffer.from("fake"), {
+      filename: "look.jpg",
+      contentType: "image/jpeg",
+    })
+    .then((response) => response);
+
+  await transformStarted;
+  const processing = (await request(app).get("/api/admin/uploads")).body.uploads;
+  assert.equal(processing[0].status, "processing");
+  releaseTransform();
+  assert.equal((await responsePromise).status, 200);
+  const completed = (await request(app).get("/api/admin/uploads")).body.uploads;
+  assert.equal(completed.length, 1);
+  assert.equal(completed[0].status, "completed");
+  assert.equal(completed[0].requestId, processing[0].requestId);
+  database.close();
+});

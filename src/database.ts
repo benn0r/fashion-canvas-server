@@ -103,7 +103,7 @@ export class AppDatabase {
     ip: string;
     createdAt: number;
     appVersion: string;
-    status: "completed" | "failed";
+    status: "processing" | "completed" | "failed";
     debug?: OutfitDebugInfo;
   }) {
     const analysis = input.debug?.usage?.analysis;
@@ -153,7 +153,7 @@ export class AppDatabase {
           ip: String(row.ip),
           timestamp: new Date(Number(row.created_at_ms)).toISOString(),
           appVersion: String(row.app_version),
-          status: row.status as "completed" | "failed",
+          status: row.status as "processing" | "completed" | "failed",
           tokens: {
             analysisInput: nullableNumber(row.analysis_input_tokens),
             analysisOutput: nullableNumber(row.analysis_output_tokens),
