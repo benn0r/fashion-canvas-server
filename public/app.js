@@ -128,6 +128,15 @@ async function refresh() {
         )
         .join("")
     : '<tr><td colspan="6" class="empty">No uploads recorded yet.</td></tr>';
+  const completed = history.uploads.filter((upload) => upload.status === "completed").length,
+    tokens = history.uploads.reduce((sum, upload) => sum + (upload.tokens.total ?? 0), 0),
+    cost = history.uploads.reduce((sum, upload) => sum + (upload.price.usd ?? 0), 0);
+  document.querySelector("#metric-uploads").textContent = history.uploads.length.toLocaleString();
+  document.querySelector("#metric-success").textContent = history.uploads.length
+    ? `${Math.round((completed / history.uploads.length) * 100)}%`
+    : "—";
+  document.querySelector("#metric-tokens").textContent = tokens.toLocaleString();
+  document.querySelector("#metric-cost").textContent = `$${cost.toFixed(4)}`;
 }
 function escapeHtml(value) {
   const node = document.createElement("span");
@@ -213,5 +222,5 @@ form.addEventListener("submit", async (e) => {
   }
 });
 document.querySelector("#refresh").addEventListener("click", refresh);
-document.querySelector("#refresh-history").addEventListener("click", refresh);
+document.querySelector("#refresh-all").addEventListener("click", refresh);
 refresh();

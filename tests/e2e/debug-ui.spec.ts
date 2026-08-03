@@ -1,11 +1,16 @@
 import { test, expect } from "@playwright/test";
 
-test("debug studio explains upload and displays rate limits", async ({ page }) => {
+test("admin console shows operations, history, and test tooling", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /From mirror selfie/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Admin console" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Admin navigation" })).toBeVisible();
+  await expect(page.getByText("System operational")).toBeVisible();
+  await expect(page.getByText("Recent uploads")).toBeVisible();
+  await expect(page.locator("#metric-uploads")).toHaveText(/\d+/);
   await expect(page.getByText("10 uploads per IP")).toBeVisible();
   await expect(page.getByText("OpenAI usage & cost")).toBeAttached();
   await expect(page.getByRole("heading", { name: "Upload history" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Test studio" })).toBeVisible();
   await expect(page.getByText(/photos are never stored/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /Create outfit canvas/ })).toBeVisible();
 });

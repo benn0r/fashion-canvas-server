@@ -3,28 +3,92 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Fashion Canvas — Outfit Studio</title>
+    <title>Fashion Canvas — Admin Console</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/crop.css" />
     <link rel="stylesheet" href="/diagnostics.css" />
     <link rel="stylesheet" href="/responsive.css" />
   </head>
   <body>
-    <header>
-      <a class="brand" href="/"><span>FC</span> Fashion Canvas</a>
-      <div class="status"><i></i> API online</div>
+    <header class="admin-header">
+      <a class="brand" href="/"
+        ><span>FC</span><strong>Fashion Canvas</strong><small>Admin</small></a
+      >
+      <nav aria-label="Admin navigation">
+        <a href="#overview">Overview</a>
+        <a href="#upload-history-title">Uploads</a>
+        <a href="#test-studio">Test studio</a>
+      </nav>
+      <div class="status"><i></i> System operational</div>
     </header>
     <main>
-      <section class="hero">
-        <p class="eyebrow">AI OUTFIT EXTRACTION</p>
-        <h1>From mirror selfie<br />to <em>editorial canvas.</em></h1>
-        <p>
-          Upload a look. Get a stylized, person-free outfit composition and every individual
-          piece—labeled and ready to use.
-        </p>
+      <section id="overview" class="admin-intro">
+        <div>
+          <p class="eyebrow">OPERATIONS / OVERVIEW</p>
+          <h1>Admin console</h1>
+          <p>Monitor usage, costs, and client activity across Fashion Canvas.</p>
+        </div>
+        <button class="secondary-action" id="refresh-all" type="button">↻ Refresh data</button>
+      </section>
+      <section class="metric-grid" aria-label="Upload summary">
+        <article>
+          <span>Recent uploads</span><strong id="metric-uploads">—</strong
+          ><small>Latest 100 records</small>
+        </article>
+        <article>
+          <span>Success rate</span><strong id="metric-success">—</strong
+          ><small>Latest 100 requests</small>
+        </article>
+        <article>
+          <span>Tracked tokens</span><strong id="metric-tokens">—</strong
+          ><small>Latest 100 uploads</small>
+        </article>
+        <article>
+          <span>Estimated spend</span><strong id="metric-cost">—</strong
+          ><small>Latest 100 uploads</small>
+        </article>
+      </section>
+      <section class="admin-history" aria-labelledby="upload-history-title">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">REQUEST LOG</p>
+            <h2 id="upload-history-title">Upload history</h2>
+            <p>Persistent metadata only. Uploaded and generated photos are never stored.</p>
+          </div>
+          <span class="database-badge">SQLite · persistent</span>
+        </div>
+        <div class="history-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Client IP</th>
+                <th>App version</th>
+                <th>Status</th>
+                <th>Tokens</th>
+                <th>Price</th>
+              </tr>
+            </thead>
+            <tbody id="upload-history">
+              <tr>
+                <td colspan="6" class="empty">No uploads recorded yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section id="test-studio" class="section-heading">
+        <div>
+          <p class="eyebrow">INTERNAL TOOLING</p>
+          <h2>Test studio</h2>
+          <p>Run a production-like extraction and inspect its diagnostics.</p>
+        </div>
       </section>
       <section class="workspace">
         <form id="upload-form">
+          <div class="form-heading">
+            <span>New extraction</span><small>JPEG, PNG, WebP or HEIC · max 12 MB</small>
+          </div>
           <label id="dropzone" class="dropzone"
             ><input
               id="photo"
@@ -33,8 +97,7 @@
               accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
               required />
             <div class="upload-icon">↥</div>
-            <strong>Drop your mirror selfie</strong
-            ><small>or click to browse · JPEG, PNG, WebP or HEIC · max 12 MB</small
+            <strong>Drop a test image</strong><small>or click to browse</small
             ><img id="preview" alt="Selected selfie preview"
           /></label>
           <section id="crop-editor" class="crop-editor" hidden>
@@ -71,7 +134,7 @@
         <aside>
           <div class="aside-head">
             <div>
-              <p class="eyebrow">LIVE ACTIVITY</p>
+              <p class="eyebrow">RATE LIMITS</p>
               <h2>Client limits</h2>
             </div>
             <button id="refresh" type="button" aria-label="Refresh">↻</button>
@@ -81,37 +144,6 @@
             <p class="empty">No uploads in this process yet.</p>
           </div>
         </aside>
-      </section>
-      <section class="admin-history" aria-labelledby="upload-history-title">
-        <div class="aside-head">
-          <div>
-            <p class="eyebrow">ADMIN</p>
-            <h2 id="upload-history-title">Upload history</h2>
-          </div>
-          <button id="refresh-history" type="button" aria-label="Refresh upload history">↻</button>
-        </div>
-        <p class="aside-copy">
-          Persistent request metadata only. Uploaded and generated photos are never stored.
-        </p>
-        <div class="history-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>IP</th>
-                <th>App</th>
-                <th>Status</th>
-                <th>Tokens</th>
-                <th>Price</th>
-              </tr>
-            </thead>
-            <tbody id="upload-history">
-              <tr>
-                <td colspan="6" class="empty">No uploads recorded yet.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
       </section>
       <section id="results" class="results" hidden>
         <div class="section-title">
@@ -143,7 +175,7 @@
         <div id="pieces" class="piece-grid"></div>
       </section>
     </main>
-    <footer>Fashion Canvas · Private debug studio</footer>
+    <footer>Fashion Canvas · Administration</footer>
     <script src="/app.js" defer></script>
   </body>
 </html>

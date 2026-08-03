@@ -44,10 +44,15 @@
   margin: 14px 0 0;
 }
 .admin-history {
-  margin-top: 24px;
-  padding: 28px;
   background: var(--card);
   border: 1px solid var(--line);
+}
+.panel-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  padding: 24px 26px;
+  border-bottom: 1px solid var(--line);
 }
 .admin-history h2 {
   margin: 0;
@@ -55,9 +60,23 @@
     30px Georgia,
     serif;
 }
+.panel-head p:last-child {
+  margin: 8px 0 0;
+  color: #777167;
+  font-size: 12px;
+}
+.database-badge {
+  padding: 7px 9px;
+  border: 1px solid #c8d7c8;
+  background: #edf4ec;
+  color: #417052;
+  font:
+    10px ui-monospace,
+    monospace;
+  text-transform: uppercase;
+}
 .history-scroll {
   overflow-x: auto;
-  margin-top: 20px;
 }
 .admin-history table {
   width: 100%;
@@ -67,7 +86,7 @@
 }
 .admin-history th,
 .admin-history td {
-  padding: 12px;
+  padding: 13px 18px;
   border-bottom: 1px solid var(--line);
   text-align: left;
 }
@@ -84,11 +103,18 @@
   color: #777167;
 }
 .history-status {
+  display: inline-block;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #eeeae1;
+  font-size: 10px;
   text-transform: capitalize;
 }
 .history-status.completed {
   color: #417052;
+  background: #e8f1e8;
 }
 .history-status.failed {
   color: #a14332;
+  background: #f7e9e5;
 }

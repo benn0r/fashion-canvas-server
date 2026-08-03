@@ -4,7 +4,43 @@
 }
 
 @media (max-width: 760px) {
+  .admin-header nav {
+    display: none;
+  }
+  .admin-header .status {
+    font-size: 0;
+  }
+  .admin-intro {
+    align-items: start;
+    gap: 20px;
+  }
+  .admin-intro h1 {
+    font-size: 34px;
+  }
+  .metric-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .panel-head {
+    gap: 18px;
+  }
+  .form-heading {
+    align-items: start;
+    gap: 8px;
+    flex-direction: column;
+  }
   .diagnostic-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 460px) {
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+  .secondary-action {
+    white-space: nowrap;
+  }
+  .database-badge {
+    display: none;
   }
 }
