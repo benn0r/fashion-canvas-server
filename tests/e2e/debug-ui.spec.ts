@@ -5,6 +5,8 @@ test("debug studio explains upload and displays rate limits", async ({ page }) =
   await expect(page.getByRole("heading", { name: /From mirror selfie/ })).toBeVisible();
   await expect(page.getByText("10 uploads per IP")).toBeVisible();
   await expect(page.getByText("OpenAI usage & cost")).toBeAttached();
+  await expect(page.getByRole("heading", { name: "Upload history" })).toBeVisible();
+  await expect(page.getByText(/photos are never stored/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /Create outfit canvas/ })).toBeVisible();
 });
 

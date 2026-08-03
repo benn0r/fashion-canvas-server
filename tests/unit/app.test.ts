@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { createApp } from "../../src/app.js";
+import { AppDatabase } from "../../src/database.js";
 
 const transformer = {
   async transform() {
@@ -22,7 +23,8 @@ const transformer = {
 };
 
 test("health and debug endpoints expose service state", async () => {
-  const app = createApp(transformer);
+  const database = new AppDatabase(":memory:");
+  const app = createApp(transformer, database);
   assert.deepEqual((await request(app).get("/health")).body, { status: "ok" });
   const config = (await request(app).get("/api/debug/config")).body;
   assert.equal(config.inputMaxDimension, 1280);
@@ -32,10 +34,12 @@ test("health and debug endpoints expose service state", async () => {
   const debug = (await request(app).get("/api/debug/rate-limits")).body;
   assert.equal(debug.limit, 10);
   assert.deepEqual(debug.clients, []);
+  database.close();
 });
 
 test("outfit endpoint validates and transforms an image", async () => {
-  const app = createApp(transformer);
+  const database = new AppDatabase(":memory:");
+  const app = createApp(transformer, database);
   const preflight = await request(app)
     .options("/api/outfits")
     .set("Origin", "http://localhost:8081")
@@ -45,9 +49,38 @@ test("outfit endpoint validates and transforms an image", async () => {
   assert.equal((await request(app).post("/api/outfits")).status, 400);
   const result = await request(app)
     .post("/api/outfits")
+    .set("X-App-Version", "ios/2.4.0")
     .attach("photo", Buffer.from("fake"), { filename: "look.jpg", contentType: "image/jpeg" });
   assert.equal(result.status, 200);
   assert.equal(result.headers["access-control-allow-origin"], "*");
   assert.equal(result.body.pieces[0].label, "Knit");
   assert.equal(result.body.debug.cost.estimatedTotal, 0.012);
+  const history = (await request(app).get("/api/admin/uploads")).body.uploads;
+  assert.equal(history.length, 1);
+  assert.equal(history[0].appVersion, "ios/2.4.0");
+  assert.equal(history[0].status, "completed");
+  assert.equal(history[0].price.usd, 0.012);
+  assert.equal(history[0].price.kind, "estimated");
+  assert.equal(history[0].tokens.total, null);
+  assert.equal(JSON.stringify(history).includes("data:image"), false);
+  database.close();
+});
+
+test("records failed transformations without storing image contents", async () => {
+  const database = new AppDatabase(":memory:");
+  const app = createApp(
+    { transform: async () => Promise.reject(new Error("upstream unavailable")) },
+    database,
+  );
+  const result = await request(app)
+    .post("/api/outfits")
+    .attach("photo", Buffer.from("secret-image-bytes"), {
+      filename: "look.jpg",
+      contentType: "image/jpeg",
+    });
+  assert.equal(result.status, 502);
+  const history = (await request(app).get("/api/admin/uploads")).body.uploads;
+  assert.equal(history[0].status, "failed");
+  assert.equal(JSON.stringify(history).includes("secret-image-bytes"), false);
+  database.close();
 });

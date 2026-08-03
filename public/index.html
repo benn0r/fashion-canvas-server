@@ -82,6 +82,37 @@
           </div>
         </aside>
       </section>
+      <section class="admin-history" aria-labelledby="upload-history-title">
+        <div class="aside-head">
+          <div>
+            <p class="eyebrow">ADMIN</p>
+            <h2 id="upload-history-title">Upload history</h2>
+          </div>
+          <button id="refresh-history" type="button" aria-label="Refresh upload history">↻</button>
+        </div>
+        <p class="aside-copy">
+          Persistent request metadata only. Uploaded and generated photos are never stored.
+        </p>
+        <div class="history-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>IP</th>
+                <th>App</th>
+                <th>Status</th>
+                <th>Tokens</th>
+                <th>Price</th>
+              </tr>
+            </thead>
+            <tbody id="upload-history">
+              <tr>
+                <td colspan="6" class="empty">No uploads recorded yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
       <section id="results" class="results" hidden>
         <div class="section-title">
           <div>

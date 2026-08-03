@@ -6,6 +6,7 @@ import path from "node:path";
 import { logError, logEvent } from "./log.js";
 import { UploadRateLimiter } from "./rate-limit.js";
 import type { OutfitResult } from "./types.js";
+import { AppDatabase } from "./database.js";
 
 export interface OutfitTransformer {
   transform(
@@ -25,7 +26,11 @@ const upload = multer({
     ),
 });
 
-export function createApp(transformer: OutfitTransformer, limiter = new UploadRateLimiter()) {
+export function createApp(
+  transformer: OutfitTransformer,
+  database = new AppDatabase(),
+  limiter = new UploadRateLimiter(10, 5 * 60_000, Date.now, database),
+) {
   const app = express();
   app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
   app.use(helmet({ contentSecurityPolicy: false }));
@@ -62,12 +67,17 @@ export function createApp(transformer: OutfitTransformer, limiter = new UploadRa
       clients: limiter.snapshots(),
     }),
   );
+  app.get("/api/admin/uploads", (request, response) =>
+    response.json({ uploads: database.uploadHistory(Number(request.query.limit ?? 100)) }),
+  );
   app.post(
     "/api/outfits",
     limiter.middleware,
     upload.single("photo"),
     async (request, response, next) => {
       const requestId = randomUUID();
+      const ip = request.ip || request.socket.remoteAddress || "unknown";
+      const appVersion = request.get("X-App-Version")?.slice(0, 100) || "web";
       response.locals.requestId = requestId;
       const startedAt = Date.now();
       try {
@@ -85,6 +95,14 @@ export function createApp(transformer: OutfitTransformer, limiter = new UploadRa
         const result = await transformer.transform(request.file.buffer, request.file.mimetype, {
           requestId,
         });
+        database.recordUpload({
+          requestId,
+          ip,
+          createdAt: startedAt,
+          appVersion,
+          status: "completed",
+          debug: result.debug,
+        });
         logEvent("request_completed", {
           requestId,
           pieces: result.pieces.length,
@@ -92,6 +110,13 @@ export function createApp(transformer: OutfitTransformer, limiter = new UploadRa
         });
         response.json(result);
       } catch (error) {
+        database.recordUpload({
+          requestId,
+          ip,
+          createdAt: startedAt,
+          appVersion,
+          status: "failed",
+        });
         next(error);
       }
     },

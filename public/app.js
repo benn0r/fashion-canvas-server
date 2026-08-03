@@ -108,7 +108,10 @@ async function croppedFile() {
   return blob ? { blob, width: canvas.width, height: canvas.height } : null;
 }
 async function refresh() {
-  const data = await fetch("/api/debug/rate-limits").then((r) => r.json());
+  const [data, history] = await Promise.all([
+    fetch("/api/debug/rate-limits").then((r) => r.json()),
+    fetch("/api/admin/uploads").then((r) => r.json()),
+  ]);
   document.querySelector("#clients").innerHTML = data.clients.length
     ? data.clients
         .map(
@@ -117,6 +120,14 @@ async function refresh() {
         )
         .join("")
     : '<p class="empty">No uploads in this process yet.</p>';
+  document.querySelector("#upload-history").innerHTML = history.uploads.length
+    ? history.uploads
+        .map(
+          (upload) =>
+            `<tr><td>${escapeHtml(new Date(upload.timestamp).toLocaleString())}</td><td><code>${escapeHtml(upload.ip)}</code></td><td>${escapeHtml(upload.appVersion)}</td><td><span class="history-status ${upload.status}">${escapeHtml(upload.status)}</span></td><td>${upload.tokens.total === null ? "—" : upload.tokens.total.toLocaleString()}</td><td>${upload.price.usd === null ? "—" : `$${upload.price.usd.toFixed(4)} <small>${upload.price.kind}</small>`}</td></tr>`,
+        )
+        .join("")
+    : '<tr><td colspan="6" class="empty">No uploads recorded yet.</td></tr>';
 }
 function escapeHtml(value) {
   const node = document.createElement("span");
@@ -202,4 +213,5 @@ form.addEventListener("submit", async (e) => {
   }
 });
 document.querySelector("#refresh").addEventListener("click", refresh);
+document.querySelector("#refresh-history").addEventListener("click", refresh);
 refresh();

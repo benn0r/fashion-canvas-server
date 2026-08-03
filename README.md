@@ -28,7 +28,9 @@ Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of
 }
 ```
 
-Each client IP may start 10 upload requests in a rolling five-minute window. `GET /api/debug/rate-limits` returns the current in-process counters used by the dashboard. Deploy one application replica unless this store is replaced with a shared store such as Redis.
+Each client IP may start 10 upload requests in a rolling five-minute window. The rate-limit events are stored in SQLite, so limits survive application restarts. `GET /api/debug/rate-limits` returns the current counters used by the dashboard.
+
+The admin upload history records the request timestamp, client IP, `X-App-Version` header (or `web`), completion status, token usage, and estimated/calculated USD price. It deliberately stores neither source photos nor generated images. `GET /api/admin/uploads?limit=100` returns the newest metadata records (up to 500).
 
 Each successful debug result also shows the OpenAI models, image dimensions and byte sizes, token usage when returned, stage timings, output settings, request ID, and estimated USD cost. Cost is an estimate based on standard API pricing rather than an invoice total; when image-edit token usage is unavailable, the estimate excludes those input tokens and says so in the UI.
 
@@ -45,6 +47,8 @@ Open `http://localhost:3000`. The OpenAI key stays server-side. Run `npm test`, 
 ## Deployment
 
 The Docker image listens on port 3000 and exposes `/health`. Configure `OPENAI_API_KEY` as a secret environment variable. Optional model settings are documented in `.env.example`.
+
+SQLite defaults to `/data/fashion-canvas.sqlite` in the container. Mount a persistent volume at `/data`; the included Compose definition uses the named `fashion-canvas-data` volume. Back up that volume to retain upload history and rate-limit state across server replacement.
 
 The Gitea workflow keeps build, unit test, browser test, and image publishing in separate jobs. It authenticates to Gitea's container registry with the built-in per-run token, so no custom registry secrets are required. Coolify deployments are triggered manually after a successful pipeline and pull the published image rather than building source.
 

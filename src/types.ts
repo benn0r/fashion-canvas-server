@@ -65,3 +65,19 @@ export interface RateLimitSnapshot {
   totalUploads: number;
   lastSeenAt: string;
 }
+
+export interface UploadHistoryEntry {
+  requestId: string;
+  ip: string;
+  timestamp: string;
+  appVersion: string;
+  status: "completed" | "failed";
+  tokens: {
+    analysisInput: number | null;
+    analysisOutput: number | null;
+    generationInput: number | null;
+    generationOutput: number | null;
+    total: number | null;
+  };
+  price: { usd: number | null; kind: "estimated" | "calculated" };
+}
