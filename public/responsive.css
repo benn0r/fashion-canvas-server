@@ -20,6 +20,9 @@
   .metric-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  .rate-limit-panel .clients {
+    grid-template-columns: 1fr;
+  }
   .panel-head {
     gap: 18px;
   }

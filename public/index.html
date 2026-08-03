@@ -48,6 +48,19 @@
           ><small>Latest 100 uploads</small>
         </article>
       </section>
+      <aside class="rate-limit-panel" aria-labelledby="client-limits-title">
+        <div class="aside-head">
+          <div>
+            <p class="eyebrow">TRAFFIC CONTROL</p>
+            <h2 id="client-limits-title">Client limits</h2>
+            <p class="aside-copy">10 uploads per IP in each rolling 5-minute window.</p>
+          </div>
+          <button id="refresh" type="button" aria-label="Refresh rate limits">↻</button>
+        </div>
+        <div id="clients" class="clients">
+          <p class="empty">No active upload limits.</p>
+        </div>
+      </aside>
       <section class="admin-history" aria-labelledby="upload-history-title">
         <div class="panel-head">
           <div>
@@ -77,73 +90,63 @@
           </table>
         </div>
       </section>
-      <section id="test-studio" class="section-heading">
-        <div>
+      <section id="test-studio" class="test-studio">
+        <div class="section-heading">
           <p class="eyebrow">INTERNAL TOOLING</p>
           <h2>Test studio</h2>
           <p>Run a production-like extraction and inspect its diagnostics.</p>
         </div>
-      </section>
-      <section class="workspace">
-        <form id="upload-form">
-          <div class="form-heading">
-            <span>New extraction</span><small>JPEG, PNG, WebP or HEIC · max 12 MB</small>
-          </div>
-          <label id="dropzone" class="dropzone"
-            ><input
-              id="photo"
-              name="photo"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-              required />
-            <div class="upload-icon">↥</div>
-            <strong>Drop a test image</strong><small>or click to browse</small
-            ><img id="preview" alt="Selected selfie preview"
-          /></label>
-          <section id="crop-editor" class="crop-editor" hidden>
-            <h3>Crop OpenAI reference</h3>
-            <p>Trim empty mirror and room areas. The cropped JPEG—not the original—is uploaded.</p>
-            <div class="crop-layout">
-              <canvas id="crop-preview" aria-label="Cropped reference preview"></canvas>
-              <div class="crop-controls">
-                <label
-                  >Left <input data-crop="left" type="range" min="0" max="40" value="0" /><output
-                    >0%</output
-                  ></label
-                ><label
-                  >Right <input data-crop="right" type="range" min="0" max="40" value="0" /><output
-                    >0%</output
-                  ></label
-                ><label
-                  >Top <input data-crop="top" type="range" min="0" max="40" value="0" /><output
-                    >0%</output
-                  ></label
-                ><label
-                  >Bottom
-                  <input data-crop="bottom" type="range" min="0" max="40" value="0" /><output
-                    >0%</output
-                  ></label
-                >
+        <div class="workspace">
+          <form id="upload-form">
+            <div class="form-heading">
+              <span>New extraction</span><small>JPEG, PNG, WebP or HEIC · max 12 MB</small>
+            </div>
+            <label id="dropzone" class="dropzone"
+              ><input
+                id="photo"
+                name="photo"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                required />
+              <div class="upload-icon">↥</div>
+              <strong>Drop a test image</strong><small>or click to browse</small
+              ><img id="preview" alt="Selected selfie preview"
+            /></label>
+            <section id="crop-editor" class="crop-editor" hidden>
+              <h3>Crop OpenAI reference</h3>
+              <p>
+                Trim empty mirror and room areas. The cropped JPEG—not the original—is uploaded.
+              </p>
+              <div class="crop-layout">
+                <canvas id="crop-preview" aria-label="Cropped reference preview"></canvas>
+                <div class="crop-controls">
+                  <label
+                    >Left <input data-crop="left" type="range" min="0" max="40" value="0" /><output
+                      >0%</output
+                    ></label
+                  ><label
+                    >Right
+                    <input data-crop="right" type="range" min="0" max="40" value="0" /><output
+                      >0%</output
+                    ></label
+                  ><label
+                    >Top <input data-crop="top" type="range" min="0" max="40" value="0" /><output
+                      >0%</output
+                    ></label
+                  ><label
+                    >Bottom
+                    <input data-crop="bottom" type="range" min="0" max="40" value="0" /><output
+                      >0%</output
+                    ></label
+                  >
+                </div>
               </div>
-            </div>
-            <p id="crop-meta" class="crop-meta"></p>
-          </section>
-          <button id="submit" type="submit">Create outfit canvas <span>→</span></button>
-          <p id="message" role="status"></p>
-        </form>
-        <aside>
-          <div class="aside-head">
-            <div>
-              <p class="eyebrow">RATE LIMITS</p>
-              <h2>Client limits</h2>
-            </div>
-            <button id="refresh" type="button" aria-label="Refresh">↻</button>
-          </div>
-          <p class="aside-copy">10 uploads per IP in each rolling 5-minute window.</p>
-          <div id="clients" class="clients">
-            <p class="empty">No uploads in this process yet.</p>
-          </div>
-        </aside>
+              <p id="crop-meta" class="crop-meta"></p>
+            </section>
+            <button id="submit" type="submit">Create outfit canvas <span>→</span></button>
+            <p id="message" role="status"></p>
+          </form>
+        </div>
       </section>
       <section id="results" class="results" hidden>
         <div class="section-title">

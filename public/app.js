@@ -119,7 +119,7 @@ async function refresh() {
             `<div class="client"><div class="client-row"><span>${escapeHtml(c.ip)}</span><b>${c.count}/${data.limit}</b></div><div class="meter"><i style="width:${(c.count / data.limit) * 100}%"></i></div><small>${c.remaining} remaining · ${c.totalUploads} total</small></div>`,
         )
         .join("")
-    : '<p class="empty">No uploads in this process yet.</p>';
+    : '<p class="empty">No active upload limits.</p>';
   document.querySelector("#upload-history").innerHTML = history.uploads.length
     ? history.uploads
         .map(

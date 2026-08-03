@@ -156,6 +156,31 @@ main {
   padding: 58px 0 20px;
   border-bottom: 1px solid var(--line);
 }
+.rate-limit-panel {
+  margin-bottom: 22px;
+  padding: 22px 26px;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+.rate-limit-panel h2 {
+  margin: 0;
+  font:
+    26px Georgia,
+    serif;
+}
+.rate-limit-panel .aside-copy {
+  margin-bottom: 0;
+}
+.rate-limit-panel .clients {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 18px;
+}
+.rate-limit-panel .client {
+  padding: 14px;
+  border: 1px solid var(--line);
+}
 .section-heading h2 {
   margin: 0;
   font:
@@ -203,15 +228,12 @@ main {
   margin: 28px 0 0;
 }
 .workspace {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
   background: var(--card);
   border: 1px solid var(--line);
   box-shadow: 0 18px 60px #2b251810;
 }
 .workspace form {
   padding: 32px;
-  border-right: 1px solid var(--line);
 }
 .dropzone {
   height: 340px;

@@ -8,6 +8,9 @@ test("admin console shows operations, history, and test tooling", async ({ page 
   await expect(page.getByText("Recent uploads")).toBeVisible();
   await expect(page.locator("#metric-uploads")).toHaveText(/\d+/);
   await expect(page.getByText("10 uploads per IP")).toBeVisible();
+  await expect(page.locator("#overview").getByText("Client limits")).toHaveCount(0);
+  await expect(page.locator("#test-studio").getByText("Client limits")).toHaveCount(0);
+  await expect(page.getByRole("complementary").getByText("Client limits")).toBeVisible();
   await expect(page.getByText("OpenAI usage & cost")).toBeAttached();
   await expect(page.getByRole("heading", { name: "Upload history" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Test studio" })).toBeVisible();
