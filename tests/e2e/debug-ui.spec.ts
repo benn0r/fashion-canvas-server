@@ -4,6 +4,8 @@ test("admin console shows operations, history, and test tooling", async ({ page 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Admin console" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Admin navigation" })).toBeVisible();
+  await expect(page.locator('.brand img[src="/app-icon.png"]')).toBeVisible();
+  await expect(page.locator('link[rel="icon"][href="/app-icon.png"]')).toHaveCount(1);
   await expect(page.getByRole("navigation").getByRole("link", { name: "Uploads" })).toHaveCount(0);
   await expect(page.getByText("System operational")).toBeVisible();
   await expect(page.getByText("Recent uploads")).toBeVisible();
@@ -18,6 +20,8 @@ test("admin console shows operations, history, and test tooling", async ({ page 
   await page.getByRole("link", { name: "Test studio" }).click();
   await expect(page).toHaveURL(/\/studio\.html$/);
   await expect(page.getByRole("heading", { name: "Test studio" })).toBeVisible();
+  await expect(page.locator('.brand img[src="/app-icon.png"]')).toBeVisible();
+  await expect(page.locator('link[rel="icon"][href="/app-icon.png"]')).toHaveCount(1);
   await expect(page.getByText("OpenAI usage & cost")).toBeAttached();
   await expect(page.getByRole("button", { name: /Create outfit canvas/ })).toBeVisible();
 });

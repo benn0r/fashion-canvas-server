@@ -46,15 +46,13 @@ body {
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
-.brand span {
-  display: inline-grid;
-  place-items: center;
+.brand img {
+  display: inline-block;
   width: 36px;
   height: 36px;
-  background: var(--rust);
-  color: var(--paper);
   margin-right: 12px;
-  font: 12px Inter;
+  border-radius: 8px;
+  vertical-align: middle;
 }
 .admin-header nav {
   display: flex;
