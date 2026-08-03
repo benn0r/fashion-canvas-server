@@ -124,10 +124,10 @@ async function refresh() {
     ? history.uploads
         .map(
           (upload) =>
-            `<tr><td>${escapeHtml(new Date(upload.timestamp).toLocaleString())}</td><td><code>${escapeHtml(upload.ip)}</code></td><td>${escapeHtml(upload.appVersion)}</td><td><span class="history-status ${upload.status}">${escapeHtml(upload.status)}</span></td><td>${upload.tokens.total === null ? "—" : upload.tokens.total.toLocaleString()}</td><td>${upload.price.usd === null ? "—" : `$${upload.price.usd.toFixed(4)} <small>${upload.price.kind}</small>`}</td></tr>`,
+            `<tr><td>${escapeHtml(new Date(upload.timestamp).toLocaleString())}</td><td><code>${escapeHtml(upload.ip)}</code></td><td>${escapeHtml(upload.appVersion)}</td><td>${upload.fileSizeBytes === null ? "—" : formatBytes(upload.fileSizeBytes)}</td><td><span class="history-status ${upload.status}">${escapeHtml(upload.status)}</span></td><td>${upload.tokens.total === null ? "—" : upload.tokens.total.toLocaleString()}</td><td>${upload.price.usd === null ? "—" : `$${upload.price.usd.toFixed(4)} <small>${upload.price.kind}</small>`}</td></tr>`,
         )
         .join("")
-    : '<tr><td colspan="6" class="empty">No uploads recorded yet.</td></tr>';
+    : '<tr><td colspan="7" class="empty">No uploads recorded yet.</td></tr>';
   const completed = history.uploads.filter((upload) => upload.status === "completed").length,
     tokens = history.uploads.reduce((sum, upload) => sum + (upload.tokens.total ?? 0), 0),
     cost = history.uploads.reduce((sum, upload) => sum + (upload.price.usd ?? 0), 0);
@@ -144,7 +144,9 @@ function escapeHtml(value) {
   return node.innerHTML;
 }
 function formatBytes(bytes) {
-  return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(2)} MB` : `${Math.round(bytes / 1024)} KB`;
+  if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(2)} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${bytes} B`;
 }
 function render(data) {
   document.querySelector("#styled-outfit").src = data.styledOutfit;

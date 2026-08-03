@@ -32,6 +32,7 @@ export class AppDatabase {
         created_at_ms INTEGER NOT NULL,
         app_version TEXT NOT NULL,
         status TEXT NOT NULL,
+        upload_bytes INTEGER,
         analysis_input_tokens INTEGER,
         analysis_output_tokens INTEGER,
         generation_input_tokens INTEGER,
@@ -42,6 +43,11 @@ export class AppDatabase {
       );
       CREATE INDEX IF NOT EXISTS uploads_created ON uploads (created_at_ms DESC);
     `);
+    const uploadColumns = this.database.prepare("PRAGMA table_info(uploads)").all() as Array<{
+      name: string;
+    }>;
+    if (!uploadColumns.some((column) => column.name === "upload_bytes"))
+      this.database.exec("ALTER TABLE uploads ADD COLUMN upload_bytes INTEGER");
   }
 
   consumeRateLimit(ip: string, limit: number, windowMs: number, now: number) {
@@ -104,6 +110,7 @@ export class AppDatabase {
     createdAt: number;
     appVersion: string;
     status: "processing" | "completed" | "failed";
+    uploadBytes?: number;
     debug?: OutfitDebugInfo;
   }) {
     const analysis = input.debug?.usage?.analysis;
@@ -113,11 +120,11 @@ export class AppDatabase {
     this.database
       .prepare(
         `INSERT OR REPLACE INTO uploads (
-          request_id, ip, created_at_ms, app_version, status,
+          request_id, ip, created_at_ms, app_version, status, upload_bytes,
           analysis_input_tokens, analysis_output_tokens,
           generation_input_tokens, generation_output_tokens, total_tokens,
           estimated_price_usd, price_is_calculated
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         input.requestId,
@@ -125,6 +132,7 @@ export class AppDatabase {
         input.createdAt,
         input.appVersion,
         input.status,
+        input.uploadBytes ?? null,
         analysis?.inputTokens ?? null,
         analysis?.outputTokens ?? null,
         generation?.inputTokens ?? null,
@@ -139,7 +147,7 @@ export class AppDatabase {
     const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 500) : 100;
     return this.database
       .prepare(
-        `SELECT request_id, ip, created_at_ms, app_version, status,
+        `SELECT request_id, ip, created_at_ms, app_version, status, upload_bytes,
                 analysis_input_tokens, analysis_output_tokens,
                 generation_input_tokens, generation_output_tokens, total_tokens,
                 estimated_price_usd, price_is_calculated
@@ -154,6 +162,7 @@ export class AppDatabase {
           timestamp: new Date(Number(row.created_at_ms)).toISOString(),
           appVersion: String(row.app_version),
           status: row.status as "processing" | "completed" | "failed",
+          fileSizeBytes: nullableNumber(row.upload_bytes),
           tokens: {
             analysisInput: nullableNumber(row.analysis_input_tokens),
             analysisOutput: nullableNumber(row.analysis_output_tokens),

@@ -80,6 +80,7 @@ export function createApp(
       const appVersion = request.get("X-App-Version")?.slice(0, 100) || "web";
       response.locals.requestId = requestId;
       const startedAt = Date.now();
+      let uploadBytes: number | undefined;
       try {
         if (!request.file) {
           logEvent("upload_rejected", { requestId, reason: "missing_or_unsupported_photo" });
@@ -92,12 +93,14 @@ export function createApp(
           mimeType: request.file.mimetype,
           bytes: request.file.size,
         });
+        uploadBytes = request.file.size;
         database.recordUpload({
           requestId,
           ip,
           createdAt: startedAt,
           appVersion,
           status: "processing",
+          uploadBytes,
         });
         const result = await transformer.transform(request.file.buffer, request.file.mimetype, {
           requestId,
@@ -108,6 +111,7 @@ export function createApp(
           createdAt: startedAt,
           appVersion,
           status: "completed",
+          uploadBytes,
           debug: result.debug,
         });
         logEvent("request_completed", {
@@ -123,6 +127,7 @@ export function createApp(
           createdAt: startedAt,
           appVersion,
           status: "failed",
+          uploadBytes,
         });
         next(error);
       }

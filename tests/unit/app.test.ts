@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
+import { DatabaseSync } from "node:sqlite";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { createApp } from "../../src/app.js";
 import { AppDatabase } from "../../src/database.js";
 
@@ -59,6 +63,7 @@ test("outfit endpoint validates and transforms an image", async () => {
   assert.equal(history.length, 1);
   assert.equal(history[0].appVersion, "ios/2.4.0");
   assert.equal(history[0].status, "completed");
+  assert.equal(history[0].fileSizeBytes, 4);
   assert.equal(history[0].price.usd, 0.012);
   assert.equal(history[0].price.kind, "estimated");
   assert.equal(history[0].tokens.total, null);
@@ -81,6 +86,7 @@ test("records failed transformations without storing image contents", async () =
   assert.equal(result.status, 502);
   const history = (await request(app).get("/api/admin/uploads")).body.uploads;
   assert.equal(history[0].status, "failed");
+  assert.equal(history[0].fileSizeBytes, 18);
   assert.equal(JSON.stringify(history).includes("secret-image-bytes"), false);
   database.close();
 });
@@ -116,11 +122,50 @@ test("shows an upload as processing before the transformation completes", async 
   await transformStarted;
   const processing = (await request(app).get("/api/admin/uploads")).body.uploads;
   assert.equal(processing[0].status, "processing");
+  assert.equal(processing[0].fileSizeBytes, 4);
   releaseTransform();
   assert.equal((await responsePromise).status, 200);
   const completed = (await request(app).get("/api/admin/uploads")).body.uploads;
   assert.equal(completed.length, 1);
   assert.equal(completed[0].status, "completed");
   assert.equal(completed[0].requestId, processing[0].requestId);
+  assert.equal(completed[0].fileSizeBytes, 4);
   database.close();
+});
+
+test("migrates an existing upload history database with the file-size column", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "fashion-canvas-migration-"));
+  const filename = path.join(directory, "history.sqlite");
+  const legacy = new DatabaseSync(filename);
+  legacy.exec(`
+    CREATE TABLE uploads (
+      id INTEGER PRIMARY KEY,
+      request_id TEXT NOT NULL UNIQUE,
+      ip TEXT NOT NULL,
+      created_at_ms INTEGER NOT NULL,
+      app_version TEXT NOT NULL,
+      status TEXT NOT NULL,
+      analysis_input_tokens INTEGER,
+      analysis_output_tokens INTEGER,
+      generation_input_tokens INTEGER,
+      generation_output_tokens INTEGER,
+      total_tokens INTEGER,
+      estimated_price_usd REAL,
+      price_is_calculated INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+  legacy.close();
+
+  const database = new AppDatabase(filename);
+  database.recordUpload({
+    requestId: "migration-request",
+    ip: "192.0.2.10",
+    createdAt: 123,
+    appVersion: "web",
+    status: "processing",
+    uploadBytes: 2048,
+  });
+  assert.equal(database.uploadHistory()[0]?.fileSizeBytes, 2048);
+  database.close();
+  rmSync(directory, { recursive: true });
 });

@@ -30,7 +30,7 @@ Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of
 
 Each client IP may start 10 upload requests in a rolling five-minute window. The rate-limit events are stored in SQLite, so limits survive application restarts. `GET /api/debug/rate-limits` returns the current counters used by the dashboard.
 
-The admin upload history records the request timestamp, client IP, `X-App-Version` header (or `web`), completion status, token usage, and estimated/calculated USD price. It deliberately stores neither source photos nor generated images. `GET /api/admin/uploads?limit=100` returns the newest metadata records (up to 500).
+The admin upload history records the request timestamp, client IP, `X-App-Version` header (or `web`), uploaded file size, completion status, token usage, and estimated/calculated USD price. It deliberately stores neither source photos nor generated images. `GET /api/admin/uploads?limit=100` returns the newest metadata records (up to 500).
 
 Each successful debug result also shows the OpenAI models, image dimensions and byte sizes, token usage when returned, stage timings, output settings, request ID, and estimated USD cost. Cost is an estimate based on standard API pricing rather than an invoice total; when image-edit token usage is unavailable, the estimate excludes those input tokens and says so in the UI.
 

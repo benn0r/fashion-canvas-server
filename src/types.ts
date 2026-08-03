@@ -72,6 +72,7 @@ export interface UploadHistoryEntry {
   timestamp: string;
   appVersion: string;
   status: "processing" | "completed" | "failed";
+  fileSizeBytes: number | null;
   tokens: {
     analysisInput: number | null;
     analysisOutput: number | null;
