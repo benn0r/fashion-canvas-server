@@ -107,37 +107,6 @@ async function croppedFile() {
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
   return blob ? { blob, width: canvas.width, height: canvas.height } : null;
 }
-async function refresh() {
-  const [data, history] = await Promise.all([
-    fetch("/api/debug/rate-limits").then((r) => r.json()),
-    fetch("/api/admin/uploads").then((r) => r.json()),
-  ]);
-  document.querySelector("#clients").innerHTML = data.clients.length
-    ? data.clients
-        .map(
-          (c) =>
-            `<div class="client"><div class="client-row"><span>${escapeHtml(c.ip)}</span><b>${c.count}/${data.limit}</b></div><div class="meter"><i style="width:${(c.count / data.limit) * 100}%"></i></div><small>${c.remaining} remaining · ${c.totalUploads} total</small></div>`,
-        )
-        .join("")
-    : '<p class="empty">No active upload limits.</p>';
-  document.querySelector("#upload-history").innerHTML = history.uploads.length
-    ? history.uploads
-        .map(
-          (upload) =>
-            `<tr><td>${escapeHtml(new Date(upload.timestamp).toLocaleString())}</td><td><code>${escapeHtml(upload.ip)}</code></td><td>${escapeHtml(upload.appVersion)}</td><td>${upload.fileSizeBytes === null ? "—" : formatBytes(upload.fileSizeBytes)}</td><td><span class="history-status ${upload.status}">${escapeHtml(upload.status)}</span></td><td>${upload.tokens.total === null ? "—" : upload.tokens.total.toLocaleString()}</td><td>${upload.price.usd === null ? "—" : `$${upload.price.usd.toFixed(4)} <small>${upload.price.kind}</small>`}</td></tr>`,
-        )
-        .join("")
-    : '<tr><td colspan="7" class="empty">No uploads recorded yet.</td></tr>';
-  const completed = history.uploads.filter((upload) => upload.status === "completed").length,
-    tokens = history.uploads.reduce((sum, upload) => sum + (upload.tokens.total ?? 0), 0),
-    cost = history.uploads.reduce((sum, upload) => sum + (upload.price.usd ?? 0), 0);
-  document.querySelector("#metric-uploads").textContent = history.uploads.length.toLocaleString();
-  document.querySelector("#metric-success").textContent = history.uploads.length
-    ? `${Math.round((completed / history.uploads.length) * 100)}%`
-    : "—";
-  document.querySelector("#metric-tokens").textContent = tokens.toLocaleString();
-  document.querySelector("#metric-cost").textContent = `$${cost.toFixed(4)}`;
-}
 function escapeHtml(value) {
   const node = document.createElement("span");
   node.textContent = value;
@@ -220,9 +189,5 @@ form.addEventListener("submit", async (e) => {
   } finally {
     submit.disabled = false;
     submit.firstChild.textContent = "Create outfit canvas ";
-    refresh();
   }
 });
-document.querySelector("#refresh").addEventListener("click", refresh);
-document.querySelector("#refresh-all").addEventListener("click", refresh);
-refresh();

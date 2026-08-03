@@ -3,11 +3,13 @@
 > [!IMPORTANT]
 > **This entire repository, including the application, design, tests, documentation, and deployment setup was made with AI.**
 
-Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of individually rendered pieces with descriptive labels. The same service includes a debug UI and a JSON API intended for a future mobile client.
+Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of individually rendered pieces with descriptive labels. The same service includes an admin console at `/`, a separate test studio at `/studio.html`, and a JSON API intended for a future mobile client.
 
-## Screenshot
+## Screenshots
 
-![Fashion Canvas debug interface](docs/screenshot.jpg)
+![Fashion Canvas admin console](docs/screenshot.jpg)
+
+![Fashion Canvas test studio](docs/studio-screenshot.jpg)
 
 ## API
 

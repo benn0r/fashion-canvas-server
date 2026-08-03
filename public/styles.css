@@ -70,7 +70,7 @@ body {
   font-size: 12px;
 }
 .admin-header nav a:hover,
-.admin-header nav a:first-child {
+.admin-header nav a.active {
   color: white;
   border-bottom-color: var(--rust);
 }
@@ -185,6 +185,15 @@ main {
   margin: 0;
   font:
     32px Georgia,
+    serif;
+}
+.studio-heading {
+  padding-top: 52px;
+}
+.studio-heading h1 {
+  margin: 0;
+  font:
+    42px/1.1 Georgia,
     serif;
 }
 .form-heading {
