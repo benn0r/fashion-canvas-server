@@ -66,9 +66,9 @@ test("shows a crop editor for a browser-readable reference image", async ({ page
   });
   await expect(page.getByRole("heading", { name: "Crop OpenAI reference" })).toBeVisible();
   await expect(page.getByText(/Source crop 2×2/)).toBeVisible();
-  await page.locator('[data-crop="left"]').evaluate((control: HTMLInputElement) => {
-    control.value = "40";
-    control.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+  const leftCrop = page.locator('[data-crop="left"]');
+  await leftCrop.focus();
+  await leftCrop.press("End");
+  await expect(leftCrop).toHaveValue("40");
   await expect(page.getByText(/Source crop 1×2/)).toBeVisible();
 });

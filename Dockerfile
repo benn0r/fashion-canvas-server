@@ -2,8 +2,10 @@ FROM node:24-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
-COPY tsconfig.json ./
+COPY tsconfig*.json vite.config.ts ./
 COPY src ./src
+COPY frontend ./frontend
+COPY public ./public
 RUN npm run build
 
 FROM node:24-alpine AS runtime
@@ -12,7 +14,7 @@ ENV NODE_ENV=production PORT=3000
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
-COPY public ./public
+COPY --from=build /app/public ./public
 RUN mkdir /data && chown node:node /data
 ENV DATABASE_PATH=/data/fashion-canvas.sqlite \
     ADMIN_USERNAME_FILE=/run/secrets/admin_username \

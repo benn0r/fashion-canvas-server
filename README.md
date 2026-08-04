@@ -3,7 +3,7 @@
 > [!IMPORTANT]
 > **This entire repository, including the application, design, tests, documentation, and deployment setup was made with AI.**
 
-Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of individually rendered pieces with descriptive labels. The same service includes an admin console at `/`, a separate test studio at `/studio.html`, and a JSON API intended for a future mobile client.
+Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of individually rendered pieces with descriptive labels. The same service includes a React admin console at `/`, a separate React test studio at `/studio.html`, and a JSON API intended for a future mobile client. Vite compiles the frontend while Express serves the production assets and API.
 
 ## Screenshots
 

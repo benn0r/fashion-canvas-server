@@ -5,12 +5,22 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "node_modules/**", "playwright-report/**", "test-results/**"],
+    ignores: [
+      "dist/**",
+      "node_modules/**",
+      "playwright-report/**",
+      "public/assets/**",
+      "test-results/**",
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
     files: ["public/**/*.js"],
+    languageOptions: { globals: globals.browser },
+  },
+  {
+    files: ["frontend/**/*.{ts,tsx}"],
     languageOptions: { globals: globals.browser },
   },
   {
