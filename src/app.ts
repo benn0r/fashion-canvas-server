@@ -7,6 +7,7 @@ import { logError, logEvent } from "./log.js";
 import { UploadRateLimiter } from "./rate-limit.js";
 import type { OutfitResult } from "./types.js";
 import { AppDatabase } from "./database.js";
+import { adminAuth, loadAdminCredentials, type AdminCredentials } from "./admin-auth.js";
 
 export interface OutfitTransformer {
   transform(
@@ -30,11 +31,13 @@ export function createApp(
   transformer: OutfitTransformer,
   database = new AppDatabase(),
   limiter = new UploadRateLimiter(10, 5 * 60_000, Date.now, database),
+  adminCredentials: AdminCredentials | null = loadAdminCredentials(),
 ) {
   const app = express();
   app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(express.json({ limit: "32kb" }));
+  app.use(adminAuth(adminCredentials));
   const publicDirectory = path.resolve(process.cwd(), "public");
   app.use(express.static(publicDirectory));
 

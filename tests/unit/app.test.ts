@@ -41,6 +41,27 @@ test("health and debug endpoints expose service state", async () => {
   database.close();
 });
 
+test("protects admin pages and operational APIs with HTTP Basic Auth", async () => {
+  const database = new AppDatabase(":memory:");
+  const app = createApp(transformer, database, undefined, {
+    username: "test-admin",
+    password: "test-password",
+  });
+  for (const pathname of ["/", "/studio.html", "/api/admin/uploads", "/api/debug/config"]) {
+    const unauthorized = await request(app).get(pathname);
+    assert.equal(unauthorized.status, 401);
+    assert.match(unauthorized.headers["www-authenticate"], /^Basic realm=/);
+    assert.equal((await request(app).get(pathname).auth("test-admin", "wrong")).status, 401);
+    assert.notEqual(
+      (await request(app).get(pathname).auth("test-admin", "test-password")).status,
+      401,
+    );
+  }
+  assert.equal((await request(app).get("/health")).status, 200);
+  assert.equal((await request(app).post("/api/outfits")).status, 400);
+  database.close();
+});
+
 test("outfit endpoint validates and transforms an image", async () => {
   const database = new AppDatabase(":memory:");
   const app = createApp(transformer, database);

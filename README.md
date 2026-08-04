@@ -52,6 +52,8 @@ The Docker image listens on port 3000 and exposes `/health`. Configure `OPENAI_A
 
 SQLite defaults to `/data/fashion-canvas.sqlite` in the container. Mount a persistent volume at `/data`; the included Compose definition uses the named `fashion-canvas-data` volume. Back up that volume to retain upload history and rate-limit state across server replacement.
 
+The admin console, test studio, and operational APIs use HTTP Basic Auth in production. Mount the username and password as files at `/run/secrets/admin_username` and `/run/secrets/admin_password`; credentials are read from `ADMIN_USERNAME_FILE` and `ADMIN_PASSWORD_FILE`. The service fails to start in production when either secret is missing or empty. The mobile-facing `POST /api/outfits` and `/health` endpoints remain available without admin credentials.
+
 The Gitea workflow keeps build, unit test, browser test, and image publishing in separate jobs. It authenticates to Gitea's container registry with the built-in per-run token, so no custom registry secrets are required. Coolify deployments are triggered manually after a successful pipeline and pull the published image rather than building source.
 
 ## Privacy
