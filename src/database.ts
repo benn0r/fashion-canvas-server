@@ -281,6 +281,13 @@ export class AppDatabase {
     return result.changes > 0;
   }
 
+  revokeUserApproval(id: number) {
+    const result = this.database
+      .prepare("UPDATE users SET approved = 0, approved_at_ms = NULL WHERE id = ?")
+      .run(id);
+    return result.changes > 0;
+  }
+
   close() {
     this.database.close();
   }

@@ -30,26 +30,23 @@ test("admin console shows operations, history, and test tooling", async ({ page 
   await expect(page.getByRole("button", { name: /Create outfit canvas/ })).toBeVisible();
 });
 
-test("registers an account and approves it from user administration", async ({ page }) => {
-  await page.goto("/account.html");
-  await expect(page.getByRole("heading", { name: "Welcome" })).toBeVisible();
-  await page.getByRole("button", { name: "Register" }).click();
-  await page.getByLabel("Username").fill("fantasy_user");
-  await page.getByLabel("Password").fill("fantasy-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page.getByRole("status")).toContainText("administrator must approve");
-
+test("confirms approval and can revoke it from user administration", async ({ page }) => {
+  const registration = await page.request.post("/api/auth/register", {
+    data: { username: "fantasy_user", password: "fantasy-password-123" },
+  });
+  expect(registration.status()).toBe(201);
   await page.goto("/users.html");
   const row = page.getByRole("row").filter({ hasText: "fantasy_user" });
   await expect(row.getByText("Pending")).toBeVisible();
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await row.getByRole("button", { name: "Approve" }).click();
+  await expect(row.getByText("Pending")).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
   await row.getByRole("button", { name: "Approve" }).click();
   await expect(row.getByText("Approved")).toBeVisible();
-
-  await page.goto("/account.html");
-  await page.getByLabel("Username").fill("fantasy_user");
-  await page.getByLabel("Password").fill("fantasy-password-123");
-  await page.locator("#account-submit").click();
-  await expect(page.getByRole("status")).toContainText("You can now upload");
+  page.once("dialog", (dialog) => dialog.accept());
+  await row.getByRole("button", { name: "Revoke approval" }).click();
+  await expect(row.getByText("Pending")).toBeVisible();
 });
 
 test("shows a crop editor for a browser-readable reference image", async ({ page }) => {

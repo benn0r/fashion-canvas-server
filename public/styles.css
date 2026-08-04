@@ -118,7 +118,7 @@ main {
   font-size: 12px;
 }
 .approve-user,
-.account-card button,
+.revoke-user,
 .workspace button {
   cursor: pointer;
 }
@@ -135,92 +135,6 @@ main {
   background: #f8f0d7;
   color: #6f591d;
   font-size: 12px;
-}
-.session-notice a {
-  color: inherit;
-  font-weight: 700;
-}
-.account-page {
-  min-height: 100vh;
-  background: var(--admin);
-}
-.account-header {
-  height: 72px;
-  display: flex;
-  align-items: center;
-  padding: 0 max(5vw, 24px);
-  color: #f7f3ea;
-  border-bottom: 1px solid #363b35;
-}
-.account-main {
-  width: min(460px, 90vw);
-  padding: 64px 0;
-}
-.account-card {
-  padding: 36px;
-  background: var(--card);
-  border: 1px solid var(--line);
-}
-.account-card h1 {
-  margin: 0;
-  font:
-    42px Georgia,
-    serif;
-}
-.account-card > p:not(.eyebrow) {
-  color: #68645c;
-  line-height: 1.5;
-}
-.account-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin: 28px 0 22px;
-  border-bottom: 1px solid var(--line);
-}
-.account-tabs button {
-  padding: 11px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: #777167;
-}
-.account-tabs button.active {
-  color: var(--ink);
-  border-bottom-color: var(--rust);
-}
-.account-card form,
-.account-card label {
-  display: grid;
-  gap: 8px;
-}
-.account-card form {
-  gap: 18px;
-}
-.account-card label {
-  color: #5e5a52;
-  font-size: 12px;
-  font-weight: 700;
-}
-.account-card input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid var(--line);
-  background: white;
-  font: inherit;
-}
-.account-card form > button {
-  padding: 13px;
-  border: 0;
-  background: var(--rust);
-  color: white;
-  font-weight: 700;
-}
-#account-message {
-  min-height: 20px;
-  margin: 0;
-  color: #6f591d;
-  font-size: 12px;
-  line-height: 1.5;
 }
 .metric-grid {
   display: grid;

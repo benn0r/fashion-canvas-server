@@ -141,6 +141,12 @@ export function createApp(
       return response.status(404).json({ code: "user_not_found", error: "User not found." });
     return response.json({ approved: true });
   });
+  app.post("/api/admin/users/:id/revoke", (request, response) => {
+    const id = Number(request.params.id);
+    if (!Number.isInteger(id) || id < 1 || !database.revokeUserApproval(id))
+      return response.status(404).json({ code: "user_not_found", error: "User not found." });
+    return response.json({ approved: false });
+  });
   app.post(
     "/api/outfits",
     requireApprovedUser(database),

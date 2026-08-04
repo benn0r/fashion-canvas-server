@@ -77,7 +77,7 @@ test("protects admin pages and operational APIs with HTTP Basic Auth", async () 
     );
   }
   assert.equal((await request(app).get("/health")).status, 200);
-  assert.equal((await request(app).get("/account.html")).status, 200);
+  assert.equal((await request(app).get("/account.html")).status, 404);
   assert.equal((await request(app).post("/api/outfits")).status, 401);
   database.close();
 });
@@ -131,6 +131,12 @@ test("registers users and requires admin approval before uploads", async () => {
     .post("/api/outfits")
     .set("Authorization", `Bearer ${login.body.token}`);
   assert.equal(approvedUpload.status, 400);
+  assert.equal((await request(app).post(`/api/admin/users/${users[0].id}/revoke`)).status, 200);
+  const revokedUpload = await request(app)
+    .post("/api/outfits")
+    .set("Authorization", `Bearer ${login.body.token}`);
+  assert.equal(revokedUpload.status, 403);
+  assert.equal(revokedUpload.body.code, "approval_required");
   database.close();
 });
 
