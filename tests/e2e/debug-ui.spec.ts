@@ -38,12 +38,16 @@ test("confirms approval and can revoke it from user administration", async ({ pa
   await page.goto("/users.html");
   const row = page.getByRole("row").filter({ hasText: "fantasy_user" });
   await expect(row.getByText("Pending")).toBeVisible();
+  const approveBox = await row.getByRole("button", { name: "Approve" }).boundingBox();
   page.once("dialog", (dialog) => dialog.dismiss());
   await row.getByRole("button", { name: "Approve" }).click();
   await expect(row.getByText("Pending")).toBeVisible();
   page.once("dialog", (dialog) => dialog.accept());
   await row.getByRole("button", { name: "Approve" }).click();
   await expect(row.getByText("Approved")).toBeVisible();
+  const revokeBox = await row.getByRole("button", { name: "Revoke approval" }).boundingBox();
+  expect(revokeBox?.width).toBe(approveBox?.width);
+  expect(revokeBox?.height).toBe(approveBox?.height);
   page.once("dialog", (dialog) => dialog.accept());
   await row.getByRole("button", { name: "Revoke approval" }).click();
   await expect(row.getByText("Pending")).toBeVisible();

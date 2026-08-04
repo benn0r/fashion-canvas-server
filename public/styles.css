@@ -122,7 +122,9 @@ main {
 .workspace button {
   cursor: pointer;
 }
-.approve-user {
+.approve-user,
+.revoke-user {
+  width: 120px;
   padding: 7px 12px;
   border: 0;
   background: var(--rust);

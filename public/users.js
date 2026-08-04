@@ -5,7 +5,7 @@ async function refreshUsers() {
     ? data.users
         .map(
           (user) =>
-            `<tr><td><strong>${escapeHtml(user.username)}</strong></td><td>${escapeHtml(new Date(user.createdAt).toLocaleString())}</td><td><span class="history-status ${user.approved ? "completed" : "processing"}">${user.approved ? "Approved" : "Pending"}</span></td><td><button class="${user.approved ? "revoke-user secondary-action" : "approve-user"}" data-user-id="${user.id}" data-username="${escapeHtml(user.username)}" type="button">${user.approved ? "Revoke approval" : "Approve"}</button></td></tr>`,
+            `<tr><td><strong>${escapeHtml(user.username)}</strong></td><td>${escapeHtml(new Date(user.createdAt).toLocaleString())}</td><td><span class="history-status ${user.approved ? "completed" : "processing"}">${user.approved ? "Approved" : "Pending"}</span></td><td><button class="${user.approved ? "revoke-user" : "approve-user"}" data-user-id="${user.id}" data-username="${escapeHtml(user.username)}" type="button">${user.approved ? "Revoke approval" : "Approve"}</button></td></tr>`,
         )
         .join("")
     : '<tr><td colspan="4" class="empty">No users registered yet.</td></tr>';
