@@ -59,6 +59,7 @@ export interface OutfitDebugInfo {
 
 export interface RateLimitSnapshot {
   ip: string;
+  username: string | null;
   count: number;
   remaining: number;
   resetAt: string;

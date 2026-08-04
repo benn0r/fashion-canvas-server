@@ -2,6 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import request from "supertest";
+import { DatabaseSync } from "node:sqlite";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { UploadRateLimiter } from "../../src/rate-limit.js";
 import { AppDatabase } from "../../src/database.js";
 
@@ -10,6 +14,10 @@ test("allows ten uploads and rejects the eleventh for one client", async () => {
   const limiter = new UploadRateLimiter(10, 300_000, () => 1_000, database);
   const app = express()
     .set("trust proxy", 1)
+    .use((_req, res, next) => {
+      res.locals.user = { username: "fashion_user" };
+      next();
+    })
     .post("/", limiter.middleware, (_req, res) => res.sendStatus(204));
   for (let i = 0; i < 10; i++)
     assert.equal((await request(app).post("/").set("X-Forwarded-For", "203.0.113.9")).status, 204);
@@ -17,6 +25,7 @@ test("allows ten uploads and rejects the eleventh for one client", async () => {
   assert.equal(blocked.status, 429);
   assert.equal(limiter.snapshots()[0]?.count, 10);
   assert.equal(limiter.snapshots()[0]?.totalUploads, 10);
+  assert.equal(limiter.snapshots()[0]?.username, "fashion_user");
   database.close();
 });
 
@@ -44,4 +53,24 @@ test("shares rate limits through persistent SQLite state", async () => {
   assert.equal((await request(firstApp).post("/")).status, 204);
   assert.equal((await request(secondApp).post("/")).status, 429);
   database.close();
+});
+
+test("migrates rate-limit clients and records the latest username", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "fashion-canvas-rate-limit-"));
+  const filename = path.join(directory, "legacy.sqlite");
+  const legacy = new DatabaseSync(filename);
+  legacy.exec(`
+    CREATE TABLE rate_limit_clients (
+      ip TEXT PRIMARY KEY,
+      total_uploads INTEGER NOT NULL,
+      last_seen_at_ms INTEGER NOT NULL
+    );
+  `);
+  legacy.close();
+
+  const database = new AppDatabase(filename);
+  database.consumeRateLimit("192.0.2.20", 10, 300_000, 1_000, "latest_user");
+  assert.equal(database.rateLimitSnapshots(10, 300_000, 1_000)[0]?.username, "latest_user");
+  database.close();
+  rmSync(directory, { recursive: true });
 });

@@ -12,8 +12,10 @@ export class UploadRateLimiter {
 
   middleware = (request: Request, response: Response, next: NextFunction): void => {
     const ip = request.ip || request.socket.remoteAddress || "unknown";
+    const username =
+      typeof response.locals.user?.username === "string" ? response.locals.user.username : null;
     const current = this.now();
-    const result = this.store.consumeRateLimit(ip, this.limit, this.windowMs, current);
+    const result = this.store.consumeRateLimit(ip, this.limit, this.windowMs, current, username);
     response.setHeader("RateLimit-Limit", this.limit);
     response.setHeader("RateLimit-Remaining", Math.max(0, this.limit - result.count));
     response.setHeader("RateLimit-Reset", Math.ceil(result.resetAt / 1000));

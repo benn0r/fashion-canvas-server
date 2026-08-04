@@ -33,6 +33,7 @@ export class AppDatabase {
         ON rate_limit_events (ip, created_at_ms);
       CREATE TABLE IF NOT EXISTS rate_limit_clients (
         ip TEXT PRIMARY KEY,
+        last_username TEXT,
         total_uploads INTEGER NOT NULL,
         last_seen_at_ms INTEGER NOT NULL
       );
@@ -75,9 +76,20 @@ export class AppDatabase {
     }>;
     if (!uploadColumns.some((column) => column.name === "upload_bytes"))
       this.database.exec("ALTER TABLE uploads ADD COLUMN upload_bytes INTEGER");
+    const rateLimitClientColumns = this.database
+      .prepare("PRAGMA table_info(rate_limit_clients)")
+      .all() as Array<{ name: string }>;
+    if (!rateLimitClientColumns.some((column) => column.name === "last_username"))
+      this.database.exec("ALTER TABLE rate_limit_clients ADD COLUMN last_username TEXT");
   }
 
-  consumeRateLimit(ip: string, limit: number, windowMs: number, now: number) {
+  consumeRateLimit(
+    ip: string,
+    limit: number,
+    windowMs: number,
+    now: number,
+    username: string | null = null,
+  ) {
     const cutoff = now - windowMs;
     this.database.prepare("DELETE FROM rate_limit_events WHERE created_at_ms <= ?").run(cutoff);
     const row = this.database
@@ -92,12 +104,14 @@ export class AppDatabase {
       .run(ip, now);
     this.database
       .prepare(
-        `INSERT INTO rate_limit_clients (ip, total_uploads, last_seen_at_ms) VALUES (?, 1, ?)
+        `INSERT INTO rate_limit_clients (ip, last_username, total_uploads, last_seen_at_ms)
+         VALUES (?, ?, 1, ?)
          ON CONFLICT(ip) DO UPDATE SET
+           last_username = excluded.last_username,
            total_uploads = total_uploads + 1,
            last_seen_at_ms = excluded.last_seen_at_ms`,
       )
-      .run(ip, now);
+      .run(ip, username, now);
     return {
       allowed: true,
       count: row.count + 1,
@@ -109,7 +123,8 @@ export class AppDatabase {
     const cutoff = now - windowMs;
     return this.database
       .prepare(
-        `SELECT events.ip, COUNT(*) AS count, MIN(events.created_at_ms) AS oldest,
+        `SELECT events.ip, clients.last_username, COUNT(*) AS count,
+                MIN(events.created_at_ms) AS oldest,
                 clients.last_seen_at_ms AS last_seen, clients.total_uploads AS total
          FROM rate_limit_events events
          JOIN rate_limit_clients clients ON clients.ip = events.ip
@@ -122,6 +137,7 @@ export class AppDatabase {
         const row = value as Record<string, number | string>;
         return {
           ip: String(row.ip),
+          username: row.last_username == null ? null : String(row.last_username),
           count: Number(row.count),
           remaining: Math.max(0, limit - Number(row.count)),
           resetAt: new Date(Number(row.oldest) + windowMs).toISOString(),

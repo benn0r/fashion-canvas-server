@@ -7,7 +7,7 @@ async function refreshAdmin() {
     ? limits.clients
         .map(
           (client) =>
-            `<div class="client"><div class="client-row"><span>${escapeHtml(client.ip)}</span><b>${client.count}/${limits.limit}</b></div><div class="meter"><i style="width:${(client.count / limits.limit) * 100}%"></i></div><small>${client.remaining} remaining · ${client.totalUploads} total</small></div>`,
+            `<div class="client"><div class="client-row"><span><strong>${escapeHtml(client.username || "Unknown user")}</strong><code>${escapeHtml(client.ip)}</code></span><b>${client.count}/${limits.limit}</b></div><div class="meter"><i style="width:${(client.count / limits.limit) * 100}%"></i></div><small>${client.remaining} remaining · ${client.totalUploads} total</small></div>`,
         )
         .join("")
     : '<p class="empty">No active upload limits.</p>';

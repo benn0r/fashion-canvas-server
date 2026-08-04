@@ -200,6 +200,16 @@ main {
   padding: 14px;
   border: 1px solid var(--line);
 }
+.rate-limit-panel .client-row span,
+.rate-limit-panel .client-row strong,
+.rate-limit-panel .client-row code {
+  display: block;
+}
+.rate-limit-panel .client-row code {
+  margin-top: 3px;
+  color: #777167;
+  font-size: 10px;
+}
 .section-heading h2 {
   margin: 0;
   font:
