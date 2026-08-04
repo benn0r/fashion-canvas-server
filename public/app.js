@@ -11,6 +11,13 @@ const form = document.querySelector("#upload-form"),
   cropInputs = [...document.querySelectorAll("[data-crop]")];
 let cropImage = null,
   cropUrl = null;
+const sessionToken = localStorage.getItem("fashionCanvasToken"),
+  sessionUser = JSON.parse(localStorage.getItem("fashionCanvasUser") || "null"),
+  sessionNotice = document.querySelector("#session-notice");
+if (sessionToken && sessionUser)
+  sessionNotice.innerHTML = sessionUser.approved
+    ? `Signed in as <strong>${escapeHtml(sessionUser.username)}</strong>.`
+    : `Signed in as <strong>${escapeHtml(sessionUser.username)}</strong> · awaiting approval.`;
 function cropRect() {
   const values = Object.fromEntries(
     cropInputs.map((control) => [control.dataset.crop, Number(control.value) / 100]),
@@ -180,7 +187,11 @@ form.addEventListener("submit", async (e) => {
       body.set("photo", cropped.blob, "cropped-reference.jpg");
       message.textContent = `Uploading cropped ${cropped.width}×${cropped.height} reference…`;
     }
-    const response = await fetch("/api/outfits", { method: "POST", body });
+    const response = await fetch("/api/outfits", {
+      method: "POST",
+      headers: sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {},
+      body,
+    });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Request failed");
     render(data);

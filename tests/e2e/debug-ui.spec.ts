@@ -17,6 +17,10 @@ test("admin console shows operations, history, and test tooling", async ({ page 
   await expect(page.getByRole("heading", { name: "Upload history" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "File size" })).toBeVisible();
   await expect(page.getByText(/photos are never stored/i)).toBeVisible();
+  await page.getByRole("link", { name: "Users" }).click();
+  await expect(page).toHaveURL(/\/users\.html$/);
+  await expect(page.getByRole("heading", { name: "User accounts" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Username" })).toBeVisible();
   await page.getByRole("link", { name: "Test studio" }).click();
   await expect(page).toHaveURL(/\/studio\.html$/);
   await expect(page.getByRole("heading", { name: "Test studio" })).toBeVisible();
@@ -24,6 +28,28 @@ test("admin console shows operations, history, and test tooling", async ({ page 
   await expect(page.locator('link[rel="icon"][href="/app-icon.png"]')).toHaveCount(1);
   await expect(page.getByText("OpenAI usage & cost")).toBeAttached();
   await expect(page.getByRole("button", { name: /Create outfit canvas/ })).toBeVisible();
+});
+
+test("registers an account and approves it from user administration", async ({ page }) => {
+  await page.goto("/account.html");
+  await expect(page.getByRole("heading", { name: "Welcome" })).toBeVisible();
+  await page.getByRole("button", { name: "Register" }).click();
+  await page.getByLabel("Username").fill("fantasy_user");
+  await page.getByLabel("Password").fill("fantasy-password-123");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByRole("status")).toContainText("administrator must approve");
+
+  await page.goto("/users.html");
+  const row = page.getByRole("row").filter({ hasText: "fantasy_user" });
+  await expect(row.getByText("Pending")).toBeVisible();
+  await row.getByRole("button", { name: "Approve" }).click();
+  await expect(row.getByText("Approved")).toBeVisible();
+
+  await page.goto("/account.html");
+  await page.getByLabel("Username").fill("fantasy_user");
+  await page.getByLabel("Password").fill("fantasy-password-123");
+  await page.locator("#account-submit").click();
+  await expect(page.getByRole("status")).toContainText("You can now upload");
 });
 
 test("shows a crop editor for a browser-readable reference image", async ({ page }) => {

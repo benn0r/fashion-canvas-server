@@ -8,6 +8,15 @@ import { UploadRateLimiter } from "./rate-limit.js";
 import type { OutfitResult } from "./types.js";
 import { AppDatabase } from "./database.js";
 import { adminAuth, loadAdminCredentials, type AdminCredentials } from "./admin-auth.js";
+import {
+  createSession,
+  hashPassword,
+  normalizeUsername,
+  requireApprovedUser,
+  validPassword,
+  validUsername,
+  verifyPassword,
+} from "./user-auth.js";
 
 export interface OutfitTransformer {
   transform(
@@ -42,10 +51,61 @@ export function createApp(
   const publicDirectory = path.resolve(process.cwd(), "public");
   app.use(express.static(publicDirectory));
 
+  app.post("/api/auth/register", (request, response) => {
+    const username = normalizeUsername(request.body?.username);
+    const password = request.body?.password;
+    if (!validUsername(username))
+      return response.status(400).json({
+        code: "invalid_username",
+        error: "Username must be 3–32 characters using letters, numbers, underscores, or hyphens.",
+      });
+    if (!validPassword(password))
+      return response.status(400).json({
+        code: "invalid_password",
+        error: "Password must be between 8 and 128 characters.",
+      });
+    const passwordData = hashPassword(password);
+    try {
+      database.createUser(username, passwordData.salt, passwordData.hash);
+      return response.status(201).json({
+        username,
+        approved: false,
+        message: "Registration complete. An administrator must approve your account.",
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("UNIQUE constraint failed"))
+        return response.status(409).json({
+          code: "username_taken",
+          error: "That username is already registered.",
+        });
+      throw error;
+    }
+  });
+
+  app.post("/api/auth/login", (request, response) => {
+    const username = normalizeUsername(request.body?.username);
+    const password = request.body?.password;
+    const user = validPassword(password) ? database.userCredentials(username) : null;
+    if (!user || !verifyPassword(password, user.password_salt, user.password_hash))
+      return response.status(401).json({
+        code: "invalid_credentials",
+        error: "Invalid username or password.",
+      });
+    const session = createSession(database, user.id);
+    return response.json({
+      token: session.token,
+      expiresAt: session.expiresAt,
+      user: { username: user.username, approved: user.approved === 1 },
+    });
+  });
+
   app.use("/api/outfits", (request, response, next) => {
     response.setHeader("Access-Control-Allow-Origin", "*");
     response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    response.setHeader(
+      "Access-Control-Allow-Headers",
+      "Authorization, Content-Type, X-App-Version",
+    );
     response.setHeader("Access-Control-Max-Age", "86400");
     if (request.method === "OPTIONS") return response.sendStatus(204);
     next();
@@ -74,8 +134,16 @@ export function createApp(
   app.get("/api/admin/uploads", (request, response) =>
     response.json({ uploads: database.uploadHistory(Number(request.query.limit ?? 100)) }),
   );
+  app.get("/api/admin/users", (_request, response) => response.json({ users: database.users() }));
+  app.post("/api/admin/users/:id/approve", (request, response) => {
+    const id = Number(request.params.id);
+    if (!Number.isInteger(id) || id < 1 || !database.approveUser(id))
+      return response.status(404).json({ code: "user_not_found", error: "User not found." });
+    return response.json({ approved: true });
+  });
   app.post(
     "/api/outfits",
+    requireApprovedUser(database),
     limiter.middleware,
     upload.single("photo"),
     async (request, response, next) => {

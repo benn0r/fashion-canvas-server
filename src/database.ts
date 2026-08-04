@@ -3,6 +3,17 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { OutfitDebugInfo, RateLimitSnapshot, UploadHistoryEntry } from "./types.js";
 
+export interface AuthenticatedUser {
+  id: number;
+  username: string;
+  approved: boolean;
+}
+
+export interface AdminUser extends AuthenticatedUser {
+  createdAt: string;
+  approvedAt: string | null;
+}
+
 export class AppDatabase {
   private readonly database: DatabaseSync;
 
@@ -42,6 +53,22 @@ export class AppDatabase {
         price_is_calculated INTEGER NOT NULL DEFAULT 0
       );
       CREATE INDEX IF NOT EXISTS uploads_created ON uploads (created_at_ms DESC);
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY,
+        username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+        password_salt TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        approved INTEGER NOT NULL DEFAULT 0,
+        created_at_ms INTEGER NOT NULL,
+        approved_at_ms INTEGER
+      );
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        token_hash TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at_ms INTEGER NOT NULL,
+        expires_at_ms INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS user_sessions_expiry ON user_sessions (expires_at_ms);
     `);
     const uploadColumns = this.database.prepare("PRAGMA table_info(uploads)").all() as Array<{
       name: string;
@@ -176,6 +203,82 @@ export class AppDatabase {
           },
         };
       });
+  }
+
+  createUser(username: string, passwordSalt: string, passwordHash: string, now = Date.now()) {
+    const result = this.database
+      .prepare(
+        `INSERT INTO users (username, password_salt, password_hash, created_at_ms)
+         VALUES (?, ?, ?, ?)`,
+      )
+      .run(username, passwordSalt, passwordHash, now);
+    return Number(result.lastInsertRowid);
+  }
+
+  userCredentials(username: string) {
+    return (this.database
+      .prepare(
+        `SELECT id, username, password_salt, password_hash, approved
+         FROM users WHERE username = ? COLLATE NOCASE`,
+      )
+      .get(username) ?? null) as {
+      id: number;
+      username: string;
+      password_salt: string;
+      password_hash: string;
+      approved: number;
+    } | null;
+  }
+
+  createUserSession(userId: number, tokenHash: string, expiresAt: number, now = Date.now()) {
+    this.database.prepare("DELETE FROM user_sessions WHERE expires_at_ms <= ?").run(now);
+    this.database
+      .prepare(
+        `INSERT INTO user_sessions (token_hash, user_id, created_at_ms, expires_at_ms)
+         VALUES (?, ?, ?, ?)`,
+      )
+      .run(tokenHash, userId, now, expiresAt);
+  }
+
+  userForSession(tokenHash: string, now: number): AuthenticatedUser | null {
+    const row = this.database
+      .prepare(
+        `SELECT users.id, users.username, users.approved
+         FROM user_sessions
+         JOIN users ON users.id = user_sessions.user_id
+         WHERE user_sessions.token_hash = ? AND user_sessions.expires_at_ms > ?`,
+      )
+      .get(tokenHash, now) as { id: number; username: string; approved: number } | undefined;
+    return row
+      ? { id: Number(row.id), username: String(row.username), approved: row.approved === 1 }
+      : null;
+  }
+
+  users(): AdminUser[] {
+    return this.database
+      .prepare(
+        `SELECT id, username, approved, created_at_ms, approved_at_ms
+         FROM users ORDER BY created_at_ms DESC`,
+      )
+      .all()
+      .map((value) => {
+        const row = value as Record<string, number | string | null>;
+        return {
+          id: Number(row.id),
+          username: String(row.username),
+          approved: Number(row.approved) === 1,
+          createdAt: new Date(Number(row.created_at_ms)).toISOString(),
+          approvedAt:
+            row.approved_at_ms == null ? null : new Date(Number(row.approved_at_ms)).toISOString(),
+        };
+      });
+  }
+
+  approveUser(id: number, now = Date.now()) {
+    const result = this.database
+      .prepare("UPDATE users SET approved = 1, approved_at_ms = ? WHERE id = ?")
+      .run(now, id);
+    return result.changes > 0;
   }
 
   close() {
