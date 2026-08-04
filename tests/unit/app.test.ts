@@ -64,7 +64,7 @@ test("protects admin pages and operational APIs with HTTP Basic Auth", async () 
 
 test("outfit endpoint validates and transforms an image", async () => {
   const database = new AppDatabase(":memory:");
-  const app = createApp(transformer, database);
+  const app = createApp(transformer, database, undefined, undefined, 2);
   const preflight = await request(app)
     .options("/api/outfits")
     .set("Origin", "http://localhost:8081")
@@ -75,6 +75,7 @@ test("outfit endpoint validates and transforms an image", async () => {
   const result = await request(app)
     .post("/api/outfits")
     .set("X-App-Version", "ios/2.4.0")
+    .set("X-Forwarded-For", "203.0.113.99, 198.51.100.24, 10.0.0.8")
     .attach("photo", Buffer.from("fake"), { filename: "look.jpg", contentType: "image/jpeg" });
   assert.equal(result.status, 200);
   assert.equal(result.headers["access-control-allow-origin"], "*");
@@ -83,12 +84,19 @@ test("outfit endpoint validates and transforms an image", async () => {
   const history = (await request(app).get("/api/admin/uploads")).body.uploads;
   assert.equal(history.length, 1);
   assert.equal(history[0].appVersion, "ios/2.4.0");
+  assert.equal(history[0].ip, "198.51.100.24");
   assert.equal(history[0].status, "completed");
   assert.equal(history[0].fileSizeBytes, 4);
   assert.equal(history[0].price.usd, 0.012);
   assert.equal(history[0].price.kind, "estimated");
   assert.equal(history[0].tokens.total, null);
   assert.equal(JSON.stringify(history).includes("data:image"), false);
+  const limits = (await request(app).get("/api/debug/rate-limits")).body.clients;
+  assert.equal(limits.find((client: { ip: string }) => client.ip === "198.51.100.24")?.count, 1);
+  assert.equal(
+    limits.some((client: { ip: string }) => client.ip === "203.0.113.99"),
+    false,
+  );
   database.close();
 });
 

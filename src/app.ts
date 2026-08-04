@@ -32,9 +32,10 @@ export function createApp(
   database = new AppDatabase(),
   limiter = new UploadRateLimiter(10, 5 * 60_000, Date.now, database),
   adminCredentials: AdminCredentials | null = loadAdminCredentials(),
+  trustProxy: number | string[] = proxyTrustSetting(process.env.TRUST_PROXY),
 ) {
   const app = express();
-  app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
+  app.set("trust proxy", trustProxy);
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(express.json({ limit: "32kb" }));
   app.use(adminAuth(adminCredentials));
@@ -152,4 +153,15 @@ export function createApp(
     },
   );
   return app;
+}
+
+function proxyTrustSetting(value: string | undefined): number | string[] {
+  if (!value) return ["loopback", "linklocal", "uniquelocal"];
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric >= 0
+    ? numeric
+    : value
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
 }
