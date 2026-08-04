@@ -16,6 +16,7 @@ test("admin console shows operations, history, and test tooling", async ({ page 
   await expect(page.getByRole("button", { name: /Create outfit canvas/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Upload history" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "File size" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "User" })).toBeVisible();
   await expect(page.getByText(/photos are never stored/i)).toBeVisible();
   await page.getByRole("link", { name: "Users" }).click();
   await expect(page).toHaveURL(/\/users\.html$/);

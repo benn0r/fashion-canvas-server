@@ -34,7 +34,7 @@ Login returns a bearer token and the account's approval state. `POST /api/outfit
 
 Each client IP may start 10 upload requests in a rolling five-minute window. The rate-limit events are stored in SQLite, so limits survive application restarts. `GET /api/debug/rate-limits` returns the current counters used by the dashboard.
 
-The admin upload history records the request timestamp, client IP, `X-App-Version` header (or `web`), uploaded file size, completion status, token usage, and estimated/calculated USD price. It deliberately stores neither source photos nor generated images. `GET /api/admin/uploads?limit=100` returns the newest metadata records (up to 500).
+The admin upload history records the authenticated username, request timestamp, client IP, `X-App-Version` header (or `web`), uploaded file size, completion status, token usage, and estimated/calculated USD price. It deliberately stores neither source photos nor generated images. `GET /api/admin/uploads?limit=100` returns the newest metadata records (up to 500). Records created before username tracking display as an unknown user.
 
 The Coolify deployment sets `TRUST_PROXY=2` for its two-proxy topology, so Express resolves the public client address from the right side of `X-Forwarded-For` without accepting a spoofed address prepended by the client. Without an override, the server trusts loopback, link-local, and private-network proxies. Set `TRUST_PROXY` to a comma-separated Express trust list or the exact hop count when the topology differs.
 

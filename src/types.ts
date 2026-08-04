@@ -70,6 +70,7 @@ export interface RateLimitSnapshot {
 export interface UploadHistoryEntry {
   requestId: string;
   ip: string;
+  username: string | null;
   timestamp: string;
   appVersion: string;
   status: "processing" | "completed" | "failed";

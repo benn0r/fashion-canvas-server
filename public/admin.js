@@ -15,10 +15,10 @@ async function refreshAdmin() {
     ? history.uploads
         .map(
           (upload) =>
-            `<tr><td>${escapeHtml(new Date(upload.timestamp).toLocaleString())}</td><td><code>${escapeHtml(upload.ip)}</code></td><td>${escapeHtml(upload.appVersion)}</td><td>${upload.fileSizeBytes === null ? "—" : formatBytes(upload.fileSizeBytes)}</td><td><span class="history-status ${upload.status}">${escapeHtml(upload.status)}</span></td><td>${upload.tokens.total === null ? "—" : upload.tokens.total.toLocaleString()}</td><td>${upload.price.usd === null ? "—" : `$${upload.price.usd.toFixed(4)} <small>${upload.price.kind}</small>`}</td></tr>`,
+            `<tr><td>${escapeHtml(new Date(upload.timestamp).toLocaleString())}</td><td><strong>${escapeHtml(upload.username || "Unknown user")}</strong></td><td><code>${escapeHtml(upload.ip)}</code></td><td>${escapeHtml(upload.appVersion)}</td><td>${upload.fileSizeBytes === null ? "—" : formatBytes(upload.fileSizeBytes)}</td><td><span class="history-status ${upload.status}">${escapeHtml(upload.status)}</span></td><td>${upload.tokens.total === null ? "—" : upload.tokens.total.toLocaleString()}</td><td>${upload.price.usd === null ? "—" : `$${upload.price.usd.toFixed(4)} <small>${upload.price.kind}</small>`}</td></tr>`,
         )
         .join("")
-    : '<tr><td colspan="7" class="empty">No uploads recorded yet.</td></tr>';
+    : '<tr><td colspan="8" class="empty">No uploads recorded yet.</td></tr>';
   const completed = history.uploads.filter((upload) => upload.status === "completed").length;
   const tokens = history.uploads.reduce((sum, upload) => sum + (upload.tokens.total ?? 0), 0);
   const cost = history.uploads.reduce((sum, upload) => sum + (upload.price.usd ?? 0), 0);

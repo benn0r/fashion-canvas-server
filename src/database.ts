@@ -41,6 +41,7 @@ export class AppDatabase {
         id INTEGER PRIMARY KEY,
         request_id TEXT NOT NULL UNIQUE,
         ip TEXT NOT NULL,
+        username TEXT,
         created_at_ms INTEGER NOT NULL,
         app_version TEXT NOT NULL,
         status TEXT NOT NULL,
@@ -76,6 +77,8 @@ export class AppDatabase {
     }>;
     if (!uploadColumns.some((column) => column.name === "upload_bytes"))
       this.database.exec("ALTER TABLE uploads ADD COLUMN upload_bytes INTEGER");
+    if (!uploadColumns.some((column) => column.name === "username"))
+      this.database.exec("ALTER TABLE uploads ADD COLUMN username TEXT");
     const rateLimitClientColumns = this.database
       .prepare("PRAGMA table_info(rate_limit_clients)")
       .all() as Array<{ name: string }>;
@@ -150,6 +153,7 @@ export class AppDatabase {
   recordUpload(input: {
     requestId: string;
     ip: string;
+    username?: string;
     createdAt: number;
     appVersion: string;
     status: "processing" | "completed" | "failed";
@@ -163,15 +167,16 @@ export class AppDatabase {
     this.database
       .prepare(
         `INSERT OR REPLACE INTO uploads (
-          request_id, ip, created_at_ms, app_version, status, upload_bytes,
+          request_id, ip, username, created_at_ms, app_version, status, upload_bytes,
           analysis_input_tokens, analysis_output_tokens,
           generation_input_tokens, generation_output_tokens, total_tokens,
           estimated_price_usd, price_is_calculated
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         input.requestId,
         input.ip,
+        input.username ?? null,
         input.createdAt,
         input.appVersion,
         input.status,
@@ -190,7 +195,7 @@ export class AppDatabase {
     const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 500) : 100;
     return this.database
       .prepare(
-        `SELECT request_id, ip, created_at_ms, app_version, status, upload_bytes,
+        `SELECT request_id, ip, username, created_at_ms, app_version, status, upload_bytes,
                 analysis_input_tokens, analysis_output_tokens,
                 generation_input_tokens, generation_output_tokens, total_tokens,
                 estimated_price_usd, price_is_calculated
@@ -202,6 +207,7 @@ export class AppDatabase {
         return {
           requestId: String(row.request_id),
           ip: String(row.ip),
+          username: row.username == null ? null : String(row.username),
           timestamp: new Date(Number(row.created_at_ms)).toISOString(),
           appVersion: String(row.app_version),
           status: row.status as "processing" | "completed" | "failed",
