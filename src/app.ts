@@ -51,6 +51,18 @@ export function createApp(
   const publicDirectory = path.resolve(process.cwd(), "public");
   app.use(express.static(publicDirectory));
 
+  app.use(["/api/auth", "/api/outfits"], (request, response, next) => {
+    response.setHeader("Access-Control-Allow-Origin", "*");
+    response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    response.setHeader(
+      "Access-Control-Allow-Headers",
+      "Authorization, Content-Type, X-App-Version",
+    );
+    response.setHeader("Access-Control-Max-Age", "86400");
+    if (request.method === "OPTIONS") return response.sendStatus(204);
+    next();
+  });
+
   app.post("/api/auth/register", (request, response) => {
     const username = normalizeUsername(request.body?.username);
     const password = request.body?.password;
@@ -99,18 +111,6 @@ export function createApp(
     });
   });
 
-  app.use("/api/outfits", (request, response, next) => {
-    response.setHeader("Access-Control-Allow-Origin", "*");
-    response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    response.setHeader(
-      "Access-Control-Allow-Headers",
-      "Authorization, Content-Type, X-App-Version",
-    );
-    response.setHeader("Access-Control-Max-Age", "86400");
-    if (request.method === "OPTIONS") return response.sendStatus(204);
-    next();
-  });
-
   app.get("/health", (_request, response) => response.json({ status: "ok" }));
   app.get("/api/debug/config", (_request, response) =>
     response.json({
@@ -155,6 +155,7 @@ export function createApp(
     async (request, response, next) => {
       const requestId = randomUUID();
       const ip = request.ip || request.socket.remoteAddress || "unknown";
+      const username = String(response.locals.user.username);
       const appVersion = request.get("X-App-Version")?.slice(0, 100) || "web";
       response.locals.requestId = requestId;
       const startedAt = Date.now();
@@ -175,6 +176,7 @@ export function createApp(
         database.recordUpload({
           requestId,
           ip,
+          username,
           createdAt: startedAt,
           appVersion,
           status: "processing",
@@ -186,6 +188,7 @@ export function createApp(
         database.recordUpload({
           requestId,
           ip,
+          username,
           createdAt: startedAt,
           appVersion,
           status: "completed",
@@ -202,6 +205,7 @@ export function createApp(
         database.recordUpload({
           requestId,
           ip,
+          username,
           createdAt: startedAt,
           appVersion,
           status: "failed",

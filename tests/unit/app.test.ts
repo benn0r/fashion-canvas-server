@@ -85,6 +85,13 @@ test("protects admin pages and operational APIs with HTTP Basic Auth", async () 
 test("registers users and requires admin approval before uploads", async () => {
   const database = new AppDatabase(":memory:");
   const app = createApp(transformer, database);
+  const preflight = await request(app)
+    .options("/api/auth/login")
+    .set("Origin", "http://localhost:4174")
+    .set("Access-Control-Request-Method", "POST");
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers["access-control-allow-origin"], "*");
+  assert.match(preflight.headers["access-control-allow-headers"], /Content-Type/);
   assert.equal(
     (await request(app).post("/api/auth/register").send({ username: "x", password: "short" }))
       .status,
@@ -165,6 +172,7 @@ test("outfit endpoint validates and transforms an image", async () => {
   const history = (await request(app).get("/api/admin/uploads")).body.uploads;
   assert.equal(history.length, 1);
   assert.equal(history[0].appVersion, "ios/2.4.0");
+  assert.equal(history[0].username, "approved-user");
   assert.equal(history[0].ip, "198.51.100.24");
   assert.equal(history[0].status, "completed");
   assert.equal(history[0].fileSizeBytes, 4);
@@ -280,6 +288,7 @@ test("migrates an existing upload history database with the file-size column", (
     uploadBytes: 2048,
   });
   assert.equal(database.uploadHistory()[0]?.fileSizeBytes, 2048);
+  assert.equal(database.uploadHistory()[0]?.username, null);
   database.close();
   rmSync(directory, { recursive: true });
 });
