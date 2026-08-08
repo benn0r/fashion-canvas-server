@@ -30,6 +30,14 @@ export interface UserAccount {
   createdAt: string;
 }
 
+export interface ApprovalVoucher {
+  id: number;
+  prefix: string;
+  createdAt: string;
+  usedAt: string | null;
+  usedByUsername: string | null;
+}
+
 export interface OutfitPiece {
   id: string;
   label: string;

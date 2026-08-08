@@ -119,6 +119,8 @@ main {
 }
 .approve-user,
 .revoke-user,
+.generate-voucher,
+.generated-voucher button,
 .workspace button {
   cursor: pointer;
 }
@@ -130,6 +132,46 @@ main {
   background: var(--rust);
   color: white;
   font-size: 11px;
+}
+.voucher-panel {
+  margin-top: 22px;
+}
+.generate-voucher,
+.generated-voucher button {
+  padding: 9px 13px;
+  border: 0;
+  background: var(--rust);
+  color: white;
+  font-size: 11px;
+}
+.generate-voucher:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.generated-voucher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 26px;
+  border-bottom: 1px solid var(--line);
+  background: #f8f0d7;
+}
+.generated-voucher span,
+.generated-voucher code {
+  display: block;
+}
+.generated-voucher span {
+  margin-bottom: 7px;
+  color: #82651d;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.generated-voucher code {
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 .session-notice {
   padding: 14px 32px;

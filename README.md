@@ -13,7 +13,9 @@ Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of
 
 ## API
 
-Register with `POST /api/auth/register` using a JSON `username` and `password`, then log in through `POST /api/auth/login`. Usernames contain 3–32 lowercase letters, numbers, underscores, or hyphens; passwords contain 8–128 characters. Registration starts in a pending state. An administrator approves the account from `/users.html` before uploads are allowed.
+Register with `POST /api/auth/register` using a JSON `username` and `password`, then log in through `POST /api/auth/login`. Usernames contain 3–32 lowercase letters, numbers, underscores, or hyphens; passwords contain 8–128 characters. Registration starts in a pending state. An administrator can approve the account directly or generate a single-use approval voucher from `/users.html`.
+
+A logged-in pending user redeems a voucher through `POST /api/auth/vouchers/redeem` with `Authorization: Bearer <token>` and a JSON body such as `{ "voucher": "FC-…" }`. Successful redemption atomically consumes the voucher and approves the account. Invalid vouchers return `400 invalid_voucher`, previously redeemed vouchers return `409 voucher_already_used`, and already-approved accounts return `409 account_already_approved`. The full code is returned only when `POST /api/admin/vouchers` generates it; SQLite stores only its SHA-256 hash and a short prefix for the admin voucher history returned by `GET /api/admin/vouchers`.
 
 Login returns a bearer token and the account's approval state. `POST /api/outfits` requires that token in `Authorization: Bearer <token>` and accepts `multipart/form-data` with one `photo` field (JPEG, PNG, WebP, HEIC, or HEIF; maximum 12 MB). Missing or invalid authentication returns `401 authentication_required`; a valid account awaiting approval returns `403 approval_required`.
 
@@ -54,7 +56,7 @@ Open `http://localhost:3000`. The OpenAI key stays server-side. Run `npm test`, 
 
 The Docker image listens on port 3000 and exposes `/health`. Configure `OPENAI_API_KEY` as a secret environment variable. Optional model settings are documented in `.env.example`.
 
-SQLite defaults to `/data/fashion-canvas.sqlite` in the container. Mount a persistent volume at `/data`; the included Compose definition uses the named `fashion-canvas-data` volume. Back up that volume to retain user accounts, hashed login sessions, approval state, upload history, and rate-limit state across server replacement. Passwords are scrypt-hashed with individual random salts, and only SHA-256 hashes of bearer tokens are persisted.
+SQLite defaults to `/data/fashion-canvas.sqlite` in the container. Mount a persistent volume at `/data`; the included Compose definition uses the named `fashion-canvas-data` volume. Back up that volume to retain user accounts, hashed login sessions, approval state and vouchers, upload history, and rate-limit state across server replacement. Passwords are scrypt-hashed with individual random salts, and only SHA-256 hashes of bearer tokens and voucher codes are persisted.
 
 The admin console, user administration, test studio, and operational APIs use HTTP Basic Auth in production. Mount the username and password as files at `/run/secrets/admin_username` and `/run/secrets/admin_password`; credentials are read from `ADMIN_USERNAME_FILE` and `ADMIN_PASSWORD_FILE`. The service fails to start in production when either secret is missing or empty. Registration, user login, and `/health` remain public; `POST /api/outfits` is protected by user bearer authentication and approval.
 

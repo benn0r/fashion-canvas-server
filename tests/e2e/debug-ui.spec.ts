@@ -22,6 +22,7 @@ test("admin console shows operations, history, and test tooling", async ({ page 
   await expect(page).toHaveURL(/\/users\.html$/);
   await expect(page.getByRole("heading", { name: "User accounts" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "Username" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Approval vouchers" })).toBeVisible();
   await page.getByRole("link", { name: "Test studio" }).click();
   await expect(page).toHaveURL(/\/studio\.html$/);
   await expect(page.getByRole("heading", { name: "Test studio" })).toBeVisible();
@@ -52,6 +53,16 @@ test("confirms approval and can revoke it from user administration", async ({ pa
   page.once("dialog", (dialog) => dialog.accept());
   await row.getByRole("button", { name: "Revoke approval" }).click();
   await expect(row.getByText("Pending")).toBeVisible();
+});
+
+test("generates a single-use approval voucher in user administration", async ({ page }) => {
+  await page.goto("/users.html");
+  await page.getByRole("button", { name: "Generate voucher" }).click();
+  const generated = page.locator("#generated-voucher");
+  await expect(generated).toHaveText(/^FC-(?:[A-F0-9]{8}-){3}[A-F0-9]{8}$/);
+  const prefix = (await generated.textContent())?.slice(0, 11);
+  await expect(page.locator("#voucher-list").getByText(`${prefix}…`)).toBeVisible();
+  await expect(page.locator("#voucher-list").getByText("Available").first()).toBeVisible();
 });
 
 test("shows a crop editor for a browser-readable reference image", async ({ page }) => {

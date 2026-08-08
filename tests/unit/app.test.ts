@@ -65,6 +65,7 @@ test("protects admin pages and operational APIs with HTTP Basic Auth", async () 
     "/users.html",
     "/api/admin/uploads",
     "/api/admin/users",
+    "/api/admin/vouchers",
     "/api/debug/config",
   ]) {
     const unauthorized = await request(app).get(pathname);
@@ -79,6 +80,7 @@ test("protects admin pages and operational APIs with HTTP Basic Auth", async () 
   assert.equal((await request(app).get("/health")).status, 200);
   assert.equal((await request(app).get("/account.html")).status, 404);
   assert.equal((await request(app).post("/api/outfits")).status, 401);
+  assert.equal((await request(app).post("/api/admin/vouchers")).status, 401);
   database.close();
 });
 
@@ -144,6 +146,81 @@ test("registers users and requires admin approval before uploads", async () => {
     .set("Authorization", `Bearer ${login.body.token}`);
   assert.equal(revokedUpload.status, 403);
   assert.equal(revokedUpload.body.code, "approval_required");
+  database.close();
+});
+
+test("approves a pending account with a single-use voucher", async () => {
+  const database = new AppDatabase(":memory:");
+  const app = createApp(transformer, database);
+  const password = "voucher-test-password";
+
+  async function registerAndLogin(username: string) {
+    assert.equal(
+      (await request(app).post("/api/auth/register").send({ username, password })).status,
+      201,
+    );
+    const login = await request(app).post("/api/auth/login").send({ username, password });
+    assert.equal(login.status, 200);
+    return login.body.token as string;
+  }
+
+  const firstToken = await registerAndLogin("voucher-user-one");
+  assert.equal((await request(app).post("/api/auth/vouchers/redeem")).status, 401);
+  const malformed = await request(app)
+    .post("/api/auth/vouchers/redeem")
+    .set("Authorization", `Bearer ${firstToken}`)
+    .send({ voucher: "not-a-voucher" });
+  assert.equal(malformed.status, 400);
+  assert.equal(malformed.body.code, "invalid_voucher");
+
+  const generated = await request(app).post("/api/admin/vouchers");
+  assert.equal(generated.status, 201);
+  const voucher = generated.body.voucher.code as string;
+  assert.match(voucher, /^FC-(?:[A-F0-9]{8}-){3}[A-F0-9]{8}$/);
+  const available = (await request(app).get("/api/admin/vouchers")).body.vouchers;
+  assert.equal(available.length, 1);
+  assert.equal(available[0].usedAt, null);
+  assert.equal(available[0].prefix, voucher.slice(0, 11));
+  assert.equal(JSON.stringify(available).includes(voucher), false);
+
+  const redeemed = await request(app)
+    .post("/api/auth/vouchers/redeem")
+    .set("Authorization", `Bearer ${firstToken}`)
+    .send({ voucher: voucher.toLowerCase() });
+  assert.equal(redeemed.status, 200);
+  assert.equal(redeemed.body.approved, true);
+  assert.equal(
+    (await request(app).post("/api/outfits").set("Authorization", `Bearer ${firstToken}`)).status,
+    400,
+  );
+
+  const secondToken = await registerAndLogin("voucher-user-two");
+  const reused = await request(app)
+    .post("/api/auth/vouchers/redeem")
+    .set("Authorization", `Bearer ${secondToken}`)
+    .send({ voucher });
+  assert.equal(reused.status, 409);
+  assert.equal(reused.body.code, "voucher_already_used");
+  const used = (await request(app).get("/api/admin/vouchers")).body.vouchers[0];
+  assert.equal(used.usedByUsername, "voucher-user-one");
+  assert.ok(used.usedAt);
+
+  const spareVoucher = (await request(app).post("/api/admin/vouchers")).body.voucher.code as string;
+  const alreadyApproved = await request(app)
+    .post("/api/auth/vouchers/redeem")
+    .set("Authorization", `Bearer ${firstToken}`)
+    .send({ voucher: spareVoucher });
+  assert.equal(alreadyApproved.status, 409);
+  assert.equal(alreadyApproved.body.code, "account_already_approved");
+  assert.equal(
+    (
+      await request(app)
+        .post("/api/auth/vouchers/redeem")
+        .set("Authorization", `Bearer ${secondToken}`)
+        .send({ voucher: spareVoucher })
+    ).status,
+    200,
+  );
   database.close();
 });
 

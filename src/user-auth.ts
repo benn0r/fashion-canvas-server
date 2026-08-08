@@ -33,6 +33,39 @@ export function createSession(database: AppDatabase, userId: number) {
   return { token, expiresAt: new Date(expiresAt).toISOString() };
 }
 
+export function generateVoucherCode() {
+  const value = randomBytes(16).toString("hex").toUpperCase();
+  return `FC-${value.slice(0, 8)}-${value.slice(8, 16)}-${value.slice(16, 24)}-${value.slice(24)}`;
+}
+
+export function normalizeVoucherCode(value: unknown) {
+  return typeof value === "string" ? value.trim().toUpperCase() : "";
+}
+
+export function validVoucherCode(value: string) {
+  return /^FC-(?:[A-F0-9]{8}-){3}[A-F0-9]{8}$/.test(value);
+}
+
+export function hashVoucherCode(value: string) {
+  return createHash("sha256").update(value).digest("base64");
+}
+
+export function requireUser(database: AppDatabase) {
+  return (request: Request, response: Response, next: NextFunction): void => {
+    const user = authenticateRequest(database, request);
+    if (!user) {
+      response.setHeader("WWW-Authenticate", "Bearer");
+      response.status(401).json({
+        code: "authentication_required",
+        error: "Log in to continue.",
+      });
+      return;
+    }
+    response.locals.user = user;
+    next();
+  };
+}
+
 export function requireApprovedUser(database: AppDatabase) {
   return (request: Request, response: Response, next: NextFunction): void => {
     const user = authenticateRequest(database, request);

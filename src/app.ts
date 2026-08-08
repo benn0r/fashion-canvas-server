@@ -10,11 +10,16 @@ import { AppDatabase } from "./database.js";
 import { adminAuth, loadAdminCredentials, type AdminCredentials } from "./admin-auth.js";
 import {
   createSession,
+  generateVoucherCode,
   hashPassword,
+  hashVoucherCode,
   normalizeUsername,
+  normalizeVoucherCode,
   requireApprovedUser,
+  requireUser,
   validPassword,
   validUsername,
+  validVoucherCode,
   verifyPassword,
 } from "./user-auth.js";
 
@@ -111,6 +116,40 @@ export function createApp(
     });
   });
 
+  app.post("/api/auth/vouchers/redeem", requireUser(database), (request, response) => {
+    const code = normalizeVoucherCode(request.body?.voucher);
+    if (!validVoucherCode(code))
+      return response.status(400).json({
+        code: "invalid_voucher",
+        error: "Enter a valid approval voucher.",
+      });
+    const result = database.redeemVoucher(hashVoucherCode(code), Number(response.locals.user.id));
+    if (result === "invalid")
+      return response.status(400).json({
+        code: "invalid_voucher",
+        error: "This approval voucher is invalid.",
+      });
+    if (result === "used")
+      return response.status(409).json({
+        code: "voucher_already_used",
+        error: "This approval voucher has already been used.",
+      });
+    if (result === "already_approved")
+      return response.status(409).json({
+        code: "account_already_approved",
+        error: "Your account is already approved.",
+      });
+    if (result === "user_not_found")
+      return response.status(401).json({
+        code: "authentication_required",
+        error: "Log in again to continue.",
+      });
+    return response.json({
+      approved: true,
+      message: "Your account has been approved.",
+    });
+  });
+
   app.get("/health", (_request, response) => response.json({ status: "ok" }));
   app.get("/api/debug/config", (_request, response) =>
     response.json({
@@ -135,6 +174,24 @@ export function createApp(
     response.json({ uploads: database.uploadHistory(Number(request.query.limit ?? 100)) }),
   );
   app.get("/api/admin/users", (_request, response) => response.json({ users: database.users() }));
+  app.get("/api/admin/vouchers", (_request, response) =>
+    response.json({ vouchers: database.vouchers() }),
+  );
+  app.post("/api/admin/vouchers", (_request, response) => {
+    const code = generateVoucherCode();
+    const createdAt = Date.now();
+    const id = database.createVoucher(hashVoucherCode(code), code.slice(0, 11), createdAt);
+    return response.status(201).json({
+      voucher: {
+        id,
+        code,
+        prefix: code.slice(0, 11),
+        createdAt: new Date(createdAt).toISOString(),
+        usedAt: null,
+        usedByUsername: null,
+      },
+    });
+  });
   app.post("/api/admin/users/:id/approve", (request, response) => {
     const id = Number(request.params.id);
     if (!Number.isInteger(id) || id < 1 || !database.approveUser(id))

@@ -26,6 +26,11 @@
   .panel-head {
     gap: 18px;
   }
+  .voucher-panel .panel-head,
+  .generated-voucher {
+    align-items: stretch;
+    flex-direction: column;
+  }
   .form-heading {
     align-items: start;
     gap: 8px;

@@ -14,6 +14,17 @@ export interface AdminUser extends AuthenticatedUser {
   approvedAt: string | null;
 }
 
+export interface AdminVoucher {
+  id: number;
+  prefix: string;
+  createdAt: string;
+  usedAt: string | null;
+  usedByUsername: string | null;
+}
+
+export type VoucherRedemptionResult =
+  "redeemed" | "invalid" | "used" | "already_approved" | "user_not_found";
+
 export class AppDatabase {
   private readonly database: DatabaseSync;
 
@@ -71,6 +82,15 @@ export class AppDatabase {
         expires_at_ms INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS user_sessions_expiry ON user_sessions (expires_at_ms);
+      CREATE TABLE IF NOT EXISTS vouchers (
+        id INTEGER PRIMARY KEY,
+        code_hash TEXT NOT NULL UNIQUE,
+        code_prefix TEXT NOT NULL,
+        created_at_ms INTEGER NOT NULL,
+        used_at_ms INTEGER,
+        used_by_user_id INTEGER REFERENCES users(id)
+      );
+      CREATE INDEX IF NOT EXISTS vouchers_created ON vouchers (created_at_ms DESC);
     `);
     const uploadColumns = this.database.prepare("PRAGMA table_info(uploads)").all() as Array<{
       name: string;
@@ -308,6 +328,83 @@ export class AppDatabase {
       .prepare("UPDATE users SET approved = 0, approved_at_ms = NULL WHERE id = ?")
       .run(id);
     return result.changes > 0;
+  }
+
+  createVoucher(codeHash: string, codePrefix: string, now = Date.now()) {
+    const result = this.database
+      .prepare(
+        `INSERT INTO vouchers (code_hash, code_prefix, created_at_ms)
+         VALUES (?, ?, ?)`,
+      )
+      .run(codeHash, codePrefix, now);
+    return Number(result.lastInsertRowid);
+  }
+
+  vouchers(): AdminVoucher[] {
+    return this.database
+      .prepare(
+        `SELECT vouchers.id, vouchers.code_prefix, vouchers.created_at_ms,
+                vouchers.used_at_ms, users.username AS used_by_username
+         FROM vouchers
+         LEFT JOIN users ON users.id = vouchers.used_by_user_id
+         ORDER BY vouchers.created_at_ms DESC`,
+      )
+      .all()
+      .map((value) => {
+        const row = value as Record<string, number | string | null>;
+        return {
+          id: Number(row.id),
+          prefix: String(row.code_prefix),
+          createdAt: new Date(Number(row.created_at_ms)).toISOString(),
+          usedAt: row.used_at_ms == null ? null : new Date(Number(row.used_at_ms)).toISOString(),
+          usedByUsername: row.used_by_username == null ? null : String(row.used_by_username),
+        };
+      });
+  }
+
+  redeemVoucher(codeHash: string, userId: number, now = Date.now()): VoucherRedemptionResult {
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      const user = this.database.prepare("SELECT approved FROM users WHERE id = ?").get(userId) as
+        { approved: number } | undefined;
+      if (!user) {
+        this.database.exec("ROLLBACK");
+        return "user_not_found";
+      }
+      if (user.approved === 1) {
+        this.database.exec("ROLLBACK");
+        return "already_approved";
+      }
+      const voucher = this.database
+        .prepare("SELECT used_at_ms FROM vouchers WHERE code_hash = ?")
+        .get(codeHash) as { used_at_ms: number | null } | undefined;
+      if (!voucher) {
+        this.database.exec("ROLLBACK");
+        return "invalid";
+      }
+      if (voucher.used_at_ms != null) {
+        this.database.exec("ROLLBACK");
+        return "used";
+      }
+      const consumed = this.database
+        .prepare(
+          `UPDATE vouchers SET used_at_ms = ?, used_by_user_id = ?
+           WHERE code_hash = ? AND used_at_ms IS NULL`,
+        )
+        .run(now, userId, codeHash);
+      if (consumed.changes !== 1) {
+        this.database.exec("ROLLBACK");
+        return "used";
+      }
+      this.database
+        .prepare("UPDATE users SET approved = 1, approved_at_ms = ? WHERE id = ?")
+        .run(now, userId);
+      this.database.exec("COMMIT");
+      return "redeemed";
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   close() {
