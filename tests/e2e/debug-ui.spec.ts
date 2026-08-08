@@ -72,3 +72,36 @@ test("shows a crop editor for a browser-readable reference image", async ({ page
   await expect(leftCrop).toHaveValue("40");
   await expect(page.getByText(/Source crop 1×2/)).toBeVisible();
 });
+
+test("queues a 5xx upload and retries it manually after reload", async ({ page }) => {
+  let attempts = 0;
+  await page.route("**/api/outfits", async (route) => {
+    attempts += 1;
+    await route.fulfill({
+      status: attempts === 1 ? 503 : 200,
+      contentType: "application/json",
+      body:
+        attempts === 1
+          ? JSON.stringify({ error: "Service unavailable" })
+          : JSON.stringify({ styledOutfit: "data:image/png;base64,AA==", pieces: [] }),
+    });
+  });
+  await page.goto("/studio.html");
+  await page.locator("#photo").setInputFiles({
+    name: "fantasy-retry.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==",
+      "base64",
+    ),
+  });
+  await page.getByRole("button", { name: /Create outfit canvas/ }).click();
+  await expect(page.getByRole("heading", { name: "Waiting uploads" })).toBeVisible();
+  await expect(page.getByText("fantasy-retry.png")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("fantasy-retry.png")).toBeVisible();
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(page.getByText("Queued upload completed successfully.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Waiting uploads" })).toHaveCount(0);
+});

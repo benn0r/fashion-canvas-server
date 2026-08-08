@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AdminHeader, Footer } from "./AdminHeader";
 import { errorMessage, formatBytes } from "./api";
+import {
+  enqueueRetryUpload,
+  listRetryUploads,
+  removeRetryUpload,
+  shouldQueueUpload,
+  uploadOutfit,
+  type RetryUpload,
+} from "./retry-queue";
 import type { OutfitResult } from "./types";
 
 type Crop = { left: number; right: number; top: number; bottom: number };
@@ -14,9 +22,15 @@ export function StudioPage() {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<OutfitResult | null>(null);
+  const [retryUploads, setRetryUploads] = useState<RetryUpload[]>([]);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const cropCanvas = useRef<HTMLCanvasElement>(null);
   const cropImage = useRef<HTMLImageElement>(null);
   const session = useMemo(readSession, []);
+
+  useEffect(() => {
+    void refreshRetryQueue();
+  }, []);
 
   const rect = useMemo(() => (sourceSize ? cropRect(sourceSize, crop) : null), [sourceSize, crop]);
   useEffect(() => {
@@ -54,27 +68,55 @@ export function StudioPage() {
     setMessage("");
     setSubmitting(true);
     try {
-      const body = new FormData();
       const cropped = cropImage.current && rect ? await croppedFile(cropImage.current, rect) : null;
+      const upload = cropped?.blob || file;
+      const fileName = file.name;
       if (cropped) {
-        body.set("photo", cropped.blob, "cropped-reference.jpg");
         setMessage(`Uploading cropped ${cropped.width}×${cropped.height} reference…`);
-      } else body.set("photo", file);
-      const response = await fetch("/api/outfits", {
-        method: "POST",
-        headers: session.token ? { Authorization: `Bearer ${session.token}` } : {},
-        body,
-      });
-      const data = (await response.json()) as OutfitResult & { error?: string };
-      if (!response.ok) throw new Error(data.error || "Request failed");
-      setResult(data);
+      }
+      const data = await uploadOutfit(upload, fileName, session.token);
+      setResult(data as unknown as OutfitResult);
       window.setTimeout(() =>
         document.querySelector("#results")?.scrollIntoView({ behavior: "smooth" }),
       );
     } catch (caught) {
-      setMessage(errorMessage(caught));
+      if (shouldQueueUpload(caught)) {
+        const cropped =
+          cropImage.current && rect ? await croppedFile(cropImage.current, rect) : null;
+        await enqueueRetryUpload(cropped?.blob || file, file.name);
+        await refreshRetryQueue();
+        setMessage("The server could not process this upload. It was added to the retry queue.");
+      } else setMessage(errorMessage(caught));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function refreshRetryQueue() {
+    try {
+      setRetryUploads(await listRetryUploads());
+    } catch (caught) {
+      setMessage(`Could not read the retry queue: ${errorMessage(caught)}`);
+    }
+  }
+
+  async function retryUpload(item: RetryUpload) {
+    setRetryingId(item.id);
+    setMessage("");
+    try {
+      const data = await uploadOutfit(item.file, item.fileName, session.token);
+      await removeRetryUpload(item.id);
+      await refreshRetryQueue();
+      setResult(data as unknown as OutfitResult);
+      setMessage("Queued upload completed successfully.");
+    } catch (caught) {
+      setMessage(
+        shouldQueueUpload(caught)
+          ? "The server is still unavailable. The upload remains in the retry queue."
+          : errorMessage(caught),
+      );
+    } finally {
+      setRetryingId(null);
     }
   }
 
@@ -99,6 +141,35 @@ export function StudioPage() {
                 "Uploads require an approved user session supplied by the client application."
               )}
             </div>
+            {retryUploads.length > 0 && (
+              <section className="retry-queue" aria-labelledby="retry-queue-title">
+                <div>
+                  <p className="eyebrow">UPLOAD RETRY QUEUE</p>
+                  <h2 id="retry-queue-title">Waiting uploads</h2>
+                  <p>Retry saved images manually when the server is available again.</p>
+                </div>
+                <ol>
+                  {retryUploads.map((item) => (
+                    <li key={item.id}>
+                      <div>
+                        <strong>{item.fileName}</strong>
+                        <small>
+                          {formatBytes(item.file.size)} · saved{" "}
+                          {new Date(item.createdAt).toLocaleString()}
+                        </small>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={retryingId !== null}
+                        onClick={() => void retryUpload(item)}
+                      >
+                        {retryingId === item.id ? "Retrying…" : "Retry"}
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )}
             <form id="upload-form" onSubmit={submit}>
               <div className="form-heading">
                 <span>New extraction</span>
