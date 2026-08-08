@@ -13,6 +13,7 @@ export default defineConfig({
       input: {
         admin: fileURLToPath(new URL("./frontend/index.html", import.meta.url)),
         users: fileURLToPath(new URL("./frontend/users.html", import.meta.url)),
+        vouchers: fileURLToPath(new URL("./frontend/vouchers.html", import.meta.url)),
         studio: fileURLToPath(new URL("./frontend/studio.html", import.meta.url)),
       },
     },

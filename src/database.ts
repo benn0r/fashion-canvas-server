@@ -25,6 +25,20 @@ export interface AdminVoucher {
 export type VoucherRedemptionResult =
   "redeemed" | "invalid" | "used" | "already_approved" | "user_not_found";
 
+export interface DirectoryPageOptions {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface DirectoryPage<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export class AppDatabase {
   private readonly database: DatabaseSync;
 
@@ -296,13 +310,28 @@ export class AppDatabase {
       : null;
   }
 
-  users(): AdminUser[] {
-    return this.database
+  users(options: DirectoryPageOptions = {}): DirectoryPage<AdminUser> {
+    const { search, page, pageSize, offset } = directoryPageOptions(options);
+    const pattern = `%${escapeLikePattern(search)}%`;
+    const total = Number(
+      (
+        this.database
+          .prepare(
+            `SELECT COUNT(*) AS count FROM users
+             WHERE username LIKE ? ESCAPE '\\' COLLATE NOCASE`,
+          )
+          .get(pattern) as { count: number }
+      ).count,
+    );
+    const items = this.database
       .prepare(
         `SELECT id, username, approved, created_at_ms, approved_at_ms
-         FROM users ORDER BY created_at_ms DESC`,
+         FROM users
+         WHERE username LIKE ? ESCAPE '\\' COLLATE NOCASE
+         ORDER BY created_at_ms DESC
+         LIMIT ? OFFSET ?`,
       )
-      .all()
+      .all(pattern, pageSize, offset)
       .map((value) => {
         const row = value as Record<string, number | string | null>;
         return {
@@ -314,6 +343,7 @@ export class AppDatabase {
             row.approved_at_ms == null ? null : new Date(Number(row.approved_at_ms)).toISOString(),
         };
       });
+    return directoryPage(items, total, page, pageSize);
   }
 
   approveUser(id: number, now = Date.now()) {
@@ -330,6 +360,27 @@ export class AppDatabase {
     return result.changes > 0;
   }
 
+  deleteUser(id: number) {
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      const user = this.database.prepare("SELECT id FROM users WHERE id = ?").get(id);
+      if (!user) {
+        this.database.exec("ROLLBACK");
+        return false;
+      }
+      this.database
+        .prepare("UPDATE vouchers SET used_by_user_id = NULL WHERE used_by_user_id = ?")
+        .run(id);
+      this.database.prepare("DELETE FROM user_sessions WHERE user_id = ?").run(id);
+      this.database.prepare("DELETE FROM users WHERE id = ?").run(id);
+      this.database.exec("COMMIT");
+      return true;
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   createVoucher(codeHash: string, codePrefix: string, now = Date.now()) {
     const result = this.database
       .prepare(
@@ -340,16 +391,34 @@ export class AppDatabase {
     return Number(result.lastInsertRowid);
   }
 
-  vouchers(): AdminVoucher[] {
-    return this.database
+  vouchers(options: DirectoryPageOptions = {}): DirectoryPage<AdminVoucher> {
+    const { search, page, pageSize, offset } = directoryPageOptions(options);
+    const pattern = `%${escapeLikePattern(search)}%`;
+    const total = Number(
+      (
+        this.database
+          .prepare(
+            `SELECT COUNT(*) AS count
+             FROM vouchers
+             LEFT JOIN users ON users.id = vouchers.used_by_user_id
+             WHERE vouchers.code_prefix LIKE ? ESCAPE '\\' COLLATE NOCASE
+                OR COALESCE(users.username, '') LIKE ? ESCAPE '\\' COLLATE NOCASE`,
+          )
+          .get(pattern, pattern) as { count: number }
+      ).count,
+    );
+    const items = this.database
       .prepare(
         `SELECT vouchers.id, vouchers.code_prefix, vouchers.created_at_ms,
                 vouchers.used_at_ms, users.username AS used_by_username
          FROM vouchers
          LEFT JOIN users ON users.id = vouchers.used_by_user_id
-         ORDER BY vouchers.created_at_ms DESC`,
+         WHERE vouchers.code_prefix LIKE ? ESCAPE '\\' COLLATE NOCASE
+            OR COALESCE(users.username, '') LIKE ? ESCAPE '\\' COLLATE NOCASE
+         ORDER BY vouchers.created_at_ms DESC
+         LIMIT ? OFFSET ?`,
       )
-      .all()
+      .all(pattern, pattern, pageSize, offset)
       .map((value) => {
         const row = value as Record<string, number | string | null>;
         return {
@@ -360,6 +429,11 @@ export class AppDatabase {
           usedByUsername: row.used_by_username == null ? null : String(row.used_by_username),
         };
       });
+    return directoryPage(items, total, page, pageSize);
+  }
+
+  deleteVoucher(id: number) {
+    return this.database.prepare("DELETE FROM vouchers WHERE id = ?").run(id).changes > 0;
   }
 
   redeemVoucher(codeHash: string, userId: number, now = Date.now()): VoucherRedemptionResult {
@@ -414,4 +488,27 @@ export class AppDatabase {
 
 function nullableNumber(value: number | string | null | undefined): number | null {
   return value == null ? null : Number(value);
+}
+
+function directoryPageOptions(options: DirectoryPageOptions) {
+  const page = Number.isFinite(options.page) ? Math.max(1, Math.trunc(options.page ?? 1)) : 1;
+  const pageSize = Number.isFinite(options.pageSize)
+    ? Math.min(100, Math.max(1, Math.trunc(options.pageSize ?? 20)))
+    : 20;
+  const search = (options.search ?? "").trim().slice(0, 100);
+  return { search, page, pageSize, offset: (page - 1) * pageSize };
+}
+
+function directoryPage<T>(items: T[], total: number, page: number, pageSize: number) {
+  return {
+    items,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  };
+}
+
+function escapeLikePattern(value: string) {
+  return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
 }

@@ -1,4 +1,4 @@
-type Page = "overview" | "users" | "studio";
+type Page = "overview" | "users" | "vouchers" | "studio";
 
 export function AdminHeader({ active }: { active: Page }) {
   return (
@@ -14,6 +14,9 @@ export function AdminHeader({ active }: { active: Page }) {
         </a>
         <a className={active === "users" ? "active" : undefined} href="/users.html">
           Users
+        </a>
+        <a className={active === "vouchers" ? "active" : undefined} href="/vouchers.html">
+          Vouchers
         </a>
         <a className={active === "studio" ? "active" : undefined} href="/studio.html">
           Test studio

@@ -247,6 +247,11 @@ export const openApiDocument = {
         operationId: "listUsers",
         summary: "List registered users",
         security: [{ adminBasic: [] }],
+        parameters: [
+          { $ref: "#/components/parameters/Search" },
+          { $ref: "#/components/parameters/Page" },
+          { $ref: "#/components/parameters/PageSize" },
+        ],
         responses: {
           "200": {
             description: "Registered users without credentials or session tokens.",
@@ -254,18 +259,35 @@ export const openApiDocument = {
               "application/json": {
                 schema: {
                   type: "object",
-                  required: ["users"],
+                  required: ["users", "pagination"],
                   properties: {
                     users: {
                       type: "array",
                       items: { $ref: "#/components/schemas/AdminUser" },
                     },
+                    pagination: { $ref: "#/components/schemas/Pagination" },
                   },
                 },
               },
             },
           },
           "401": adminAuthenticationError,
+        },
+      },
+    },
+    "/api/admin/users/{id}": {
+      delete: {
+        tags: ["Administration"],
+        operationId: "deleteUser",
+        summary: "Delete a user account",
+        description:
+          "Invalidates the user's sessions and detaches their account from voucher history. Upload history remains intact.",
+        security: [{ adminBasic: [] }],
+        parameters: [{ $ref: "#/components/parameters/UserId" }],
+        responses: {
+          "204": { description: "The user was deleted." },
+          "401": adminAuthenticationError,
+          "404": errorResponse("The user was not found."),
         },
       },
     },
@@ -320,6 +342,11 @@ export const openApiDocument = {
         summary: "List approval voucher history",
         description: "Returns neither hashes nor voucher codes. Only a short prefix is displayed.",
         security: [{ adminBasic: [] }],
+        parameters: [
+          { $ref: "#/components/parameters/Search" },
+          { $ref: "#/components/parameters/Page" },
+          { $ref: "#/components/parameters/PageSize" },
+        ],
         responses: {
           "200": {
             description: "Voucher history, newest first.",
@@ -327,12 +354,13 @@ export const openApiDocument = {
               "application/json": {
                 schema: {
                   type: "object",
-                  required: ["vouchers"],
+                  required: ["vouchers", "pagination"],
                   properties: {
                     vouchers: {
                       type: "array",
                       items: { $ref: "#/components/schemas/AdminVoucher" },
                     },
+                    pagination: { $ref: "#/components/schemas/Pagination" },
                   },
                 },
               },
@@ -358,6 +386,28 @@ export const openApiDocument = {
             },
           },
           "401": adminAuthenticationError,
+        },
+      },
+    },
+    "/api/admin/vouchers/{id}": {
+      delete: {
+        tags: ["Administration"],
+        operationId: "deleteApprovalVoucher",
+        summary: "Delete an approval voucher",
+        security: [{ adminBasic: [] }],
+        parameters: [
+          {
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "integer", minimum: 1 },
+            description: "Numeric voucher ID.",
+          },
+        ],
+        responses: {
+          "204": { description: "The voucher was deleted." },
+          "401": adminAuthenticationError,
+          "404": errorResponse("The voucher was not found."),
         },
       },
     },
@@ -421,6 +471,25 @@ export const openApiDocument = {
         required: true,
         schema: { type: "integer", minimum: 1 },
         description: "Numeric user ID.",
+      },
+      Search: {
+        in: "query",
+        name: "search",
+        required: false,
+        schema: { type: "string", maxLength: 100 },
+        description: "Case-insensitive directory search.",
+      },
+      Page: {
+        in: "query",
+        name: "page",
+        required: false,
+        schema: { type: "integer", minimum: 1, default: 1 },
+      },
+      PageSize: {
+        in: "query",
+        name: "pageSize",
+        required: false,
+        schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
       },
     },
     schemas: {
@@ -591,6 +660,16 @@ export const openApiDocument = {
           createdAt: { type: "string", format: "date-time" },
           usedAt: { type: "string", format: "date-time", nullable: true },
           usedByUsername: { type: "string", nullable: true },
+        },
+      },
+      Pagination: {
+        type: "object",
+        required: ["total", "page", "pageSize", "totalPages"],
+        properties: {
+          total: { type: "integer", minimum: 0 },
+          page: { type: "integer", minimum: 1 },
+          pageSize: { type: "integer", minimum: 1, maximum: 100 },
+          totalPages: { type: "integer", minimum: 0 },
         },
       },
       GeneratedVoucherResponse: {

@@ -1,29 +1,46 @@
 import { useCallback, useEffect, useState } from "react";
 import { AdminHeader, Footer } from "./AdminHeader";
+import { DirectorySearch, PaginationControls } from "./DirectoryControls";
 import { errorMessage, getJson } from "./api";
-import type { ApprovalVoucher, UserAccount } from "./types";
+import type { Pagination, UserAccount } from "./types";
+
+const pageSize = 10;
+const emptyPagination: Pagination = { total: 0, page: 1, pageSize, totalPages: 0 };
 
 export function UsersPage() {
   const [users, setUsers] = useState<UserAccount[]>([]);
-  const [vouchers, setVouchers] = useState<ApprovalVoucher[]>([]);
-  const [generatedCode, setGeneratedCode] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [pagination, setPagination] = useState(emptyPagination);
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+
   const refresh = useCallback(async () => {
     try {
-      const [userResponse, voucherResponse] = await Promise.all([
-        getJson<{ users: UserAccount[] }>("/api/admin/users"),
-        getJson<{ vouchers: ApprovalVoucher[] }>("/api/admin/vouchers"),
-      ]);
-      setUsers(userResponse.users);
-      setVouchers(voucherResponse.vouchers);
+      const parameters = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+        search,
+      });
+      const response = await getJson<{ users: UserAccount[]; pagination: Pagination }>(
+        `/api/admin/users?${parameters}`,
+      );
+      setUsers(response.users);
+      setPagination(response.pagination);
       setError("");
     } catch (caught) {
       setError(errorMessage(caught));
     }
-  }, []);
+  }, [page, search]);
+
   useEffect(() => void refresh(), [refresh]);
+
+  function applySearch(value: string) {
+    const nextSearch = value.trim();
+    setPage(1);
+    setSearch(nextSearch);
+    if (page === 1 && search === nextSearch) void refresh();
+  }
 
   async function changeApproval(user: UserAccount) {
     const action = user.approved ? "revoke approval for" : "approve";
@@ -34,31 +51,20 @@ export function UsersPage() {
     else await refresh();
   }
 
-  async function generateVoucher() {
-    setGenerating(true);
-    setCopied(false);
-    try {
-      const response = await fetch("/api/admin/vouchers", { method: "POST" });
-      if (!response.ok) throw new Error("The voucher could not be generated.");
-      const result = (await response.json()) as {
-        voucher: ApprovalVoucher & { code: string };
-      };
-      setGeneratedCode(result.voucher.code);
-      await refresh();
-    } catch (caught) {
-      setError(errorMessage(caught));
-    } finally {
-      setGenerating(false);
+  async function deleteUser(user: UserAccount) {
+    if (
+      !window.confirm(
+        `Permanently delete ${user.username}? Their active sessions will be invalidated. This cannot be undone.`,
+      )
+    )
+      return;
+    const response = await fetch(`/api/admin/users/${user.id}`, { method: "DELETE" });
+    if (!response.ok) {
+      setError("The user could not be deleted.");
+      return;
     }
-  }
-
-  async function copyVoucher() {
-    try {
-      await navigator.clipboard.writeText(generatedCode);
-      setCopied(true);
-    } catch {
-      setError("Copy failed. Select and copy the voucher manually.");
-    }
+    if (users.length === 1 && page > 1) setPage(page - 1);
+    else await refresh();
   }
 
   return (
@@ -85,6 +91,14 @@ export function UsersPage() {
             </div>
             <span className="database-badge">SQLite · persistent</span>
           </div>
+          <DirectorySearch
+            label="Search users"
+            placeholder="Username"
+            value={searchInput}
+            activeSearch={search}
+            onChange={setSearchInput}
+            onSearch={applySearch}
+          />
           <div className="history-scroll">
             <table>
               <thead>
@@ -92,7 +106,7 @@ export function UsersPage() {
                   <th>Username</th>
                   <th>Registered</th>
                   <th>Status</th>
-                  <th>Action</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="user-list">
@@ -111,94 +125,36 @@ export function UsersPage() {
                         </span>
                       </td>
                       <td>
-                        <button
-                          className={user.approved ? "revoke-user" : "approve-user"}
-                          type="button"
-                          onClick={() => changeApproval(user)}
-                        >
-                          {user.approved ? "Revoke approval" : "Approve"}
-                        </button>
+                        <div className="directory-actions">
+                          <button
+                            className={user.approved ? "revoke-user" : "approve-user"}
+                            type="button"
+                            onClick={() => changeApproval(user)}
+                          >
+                            {user.approved ? "Revoke approval" : "Approve"}
+                          </button>
+                          <button
+                            className="danger-action"
+                            type="button"
+                            onClick={() => deleteUser(user)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td colSpan={4} className="empty">
-                      No users registered yet.
+                      {search ? "No users match this search." : "No users registered yet."}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
-        </section>
-        <section className="admin-history voucher-panel" aria-labelledby="vouchers-title">
-          <div className="panel-head">
-            <div>
-              <p className="eyebrow">SELF-SERVICE APPROVAL</p>
-              <h2 id="vouchers-title">Approval vouchers</h2>
-              <p>
-                Generate single-use codes that registered users can redeem to approve themselves.
-              </p>
-            </div>
-            <button
-              className="generate-voucher"
-              type="button"
-              disabled={generating}
-              onClick={generateVoucher}
-            >
-              {generating ? "Generating…" : "+ Generate voucher"}
-            </button>
-          </div>
-          {generatedCode && (
-            <div className="generated-voucher" aria-live="polite">
-              <div>
-                <span>New voucher · shown once</span>
-                <code id="generated-voucher">{generatedCode}</code>
-              </div>
-              <button type="button" onClick={copyVoucher}>
-                {copied ? "Copied" : "Copy code"}
-              </button>
-            </div>
-          )}
-          <div className="history-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Voucher</th>
-                  <th>Generated</th>
-                  <th>Status</th>
-                  <th>Redeemed by</th>
-                </tr>
-              </thead>
-              <tbody id="voucher-list">
-                {vouchers.length ? (
-                  vouchers.map((voucher) => (
-                    <tr key={voucher.id}>
-                      <td>
-                        <code>{voucher.prefix}…</code>
-                      </td>
-                      <td>{new Date(voucher.createdAt).toLocaleString()}</td>
-                      <td>
-                        <span
-                          className={`history-status ${voucher.usedAt ? "completed" : "processing"}`}
-                        >
-                          {voucher.usedAt ? "Used" : "Available"}
-                        </span>
-                      </td>
-                      <td>{voucher.usedByUsername ?? "—"}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="empty">
-                      No approval vouchers generated yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <PaginationControls pagination={pagination} onPage={setPage} />
         </section>
       </main>
       <Footer>User administration</Footer>

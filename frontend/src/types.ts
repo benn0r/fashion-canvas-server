@@ -38,6 +38,13 @@ export interface ApprovalVoucher {
   usedByUsername: string | null;
 }
 
+export interface Pagination {
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export interface OutfitPiece {
   id: string;
   label: string;

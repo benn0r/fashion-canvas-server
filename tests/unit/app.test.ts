@@ -63,6 +63,7 @@ test("protects admin pages and operational APIs with HTTP Basic Auth", async () 
     "/",
     "/studio.html",
     "/users.html",
+    "/vouchers.html",
     "/api-docs/",
     "/api-docs/openapi.json",
     "/api/admin/uploads",
@@ -101,6 +102,8 @@ test("protects admin pages and operational APIs with HTTP Basic Auth", async () 
   );
   assert.equal(specification.body.components.securitySchemes.userBearer.scheme, "bearer");
   assert.equal(specification.body.components.securitySchemes.adminBasic.scheme, "basic");
+  assert.ok(specification.body.paths["/api/admin/users/{id}"].delete);
+  assert.ok(specification.body.paths["/api/admin/vouchers/{id}"].delete);
   database.close();
 });
 
@@ -241,6 +244,76 @@ test("approves a pending account with a single-use voucher", async () => {
     ).status,
     200,
   );
+  database.close();
+});
+
+test("searches, paginates, and deletes users and vouchers", async () => {
+  const database = new AppDatabase(":memory:");
+  const app = createApp(transformer, database);
+  const password = "directory-test-password";
+  for (const username of ["directory_alpha", "directory_beta", "directory_gamma"]) {
+    assert.equal(
+      (await request(app).post("/api/auth/register").send({ username, password })).status,
+      201,
+    );
+  }
+
+  const firstPage = await request(app).get("/api/admin/users?page=1&pageSize=2");
+  assert.equal(firstPage.status, 200);
+  assert.equal(firstPage.body.users.length, 2);
+  assert.deepEqual(firstPage.body.pagination, {
+    total: 3,
+    page: 1,
+    pageSize: 2,
+    totalPages: 2,
+  });
+  const secondPage = await request(app).get("/api/admin/users?page=2&pageSize=2");
+  assert.equal(secondPage.body.users.length, 1);
+  const userSearch = await request(app).get("/api/admin/users?search=ALPHA");
+  assert.equal(userSearch.body.pagination.total, 1);
+  assert.equal(userSearch.body.users[0].username, "directory_alpha");
+
+  const login = await request(app)
+    .post("/api/auth/login")
+    .send({ username: "directory_alpha", password });
+  assert.equal(login.status, 200);
+  const generated = await request(app).post("/api/admin/vouchers");
+  const voucher = generated.body.voucher;
+  assert.equal(
+    (
+      await request(app)
+        .post("/api/auth/vouchers/redeem")
+        .set("Authorization", `Bearer ${login.body.token}`)
+        .send({ voucher: voucher.code })
+    ).status,
+    200,
+  );
+  await request(app).post("/api/admin/vouchers");
+  await request(app).post("/api/admin/vouchers");
+  const voucherPage = await request(app).get("/api/admin/vouchers?page=2&pageSize=2");
+  assert.equal(voucherPage.body.vouchers.length, 1);
+  assert.equal(voucherPage.body.pagination.totalPages, 2);
+  const voucherSearch = await request(app).get(
+    `/api/admin/vouchers?search=${encodeURIComponent(voucher.prefix)}`,
+  );
+  assert.equal(voucherSearch.body.pagination.total, 1);
+  assert.equal(voucherSearch.body.vouchers[0].usedByUsername, "directory_alpha");
+
+  const alphaId = userSearch.body.users[0].id;
+  assert.equal((await request(app).delete(`/api/admin/users/${alphaId}`)).status, 204);
+  assert.equal((await request(app).delete(`/api/admin/users/${alphaId}`)).status, 404);
+  assert.equal(
+    (await request(app).post("/api/outfits").set("Authorization", `Bearer ${login.body.token}`))
+      .status,
+    401,
+  );
+  const detachedVoucher = await request(app).get(
+    `/api/admin/vouchers?search=${encodeURIComponent(voucher.prefix)}`,
+  );
+  assert.equal(detachedVoucher.body.vouchers[0].usedByUsername, null);
+  assert.ok(detachedVoucher.body.vouchers[0].usedAt);
+  assert.equal((await request(app).delete(`/api/admin/vouchers/${voucher.id}`)).status, 204);
+  assert.equal((await request(app).delete(`/api/admin/vouchers/${voucher.id}`)).status, 404);
   database.close();
 });
 

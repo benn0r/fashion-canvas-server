@@ -187,10 +187,14 @@ export function createApp(
   app.get("/api/admin/uploads", (request, response) =>
     response.json({ uploads: database.uploadHistory(Number(request.query.limit ?? 100)) }),
   );
-  app.get("/api/admin/users", (_request, response) => response.json({ users: database.users() }));
-  app.get("/api/admin/vouchers", (_request, response) =>
-    response.json({ vouchers: database.vouchers() }),
-  );
+  app.get("/api/admin/users", (request, response) => {
+    const result = database.users(directoryQuery(request));
+    return response.json({ users: result.items, pagination: paginationResponse(result) });
+  });
+  app.get("/api/admin/vouchers", (request, response) => {
+    const result = database.vouchers(directoryQuery(request));
+    return response.json({ vouchers: result.items, pagination: paginationResponse(result) });
+  });
   app.post("/api/admin/vouchers", (_request, response) => {
     const code = generateVoucherCode();
     const createdAt = Date.now();
@@ -217,6 +221,18 @@ export function createApp(
     if (!Number.isInteger(id) || id < 1 || !database.revokeUserApproval(id))
       return response.status(404).json({ code: "user_not_found", error: "User not found." });
     return response.json({ approved: false });
+  });
+  app.delete("/api/admin/users/:id", (request, response) => {
+    const id = Number(request.params.id);
+    if (!Number.isInteger(id) || id < 1 || !database.deleteUser(id))
+      return response.status(404).json({ code: "user_not_found", error: "User not found." });
+    return response.sendStatus(204);
+  });
+  app.delete("/api/admin/vouchers/:id", (request, response) => {
+    const id = Number(request.params.id);
+    if (!Number.isInteger(id) || id < 1 || !database.deleteVoucher(id))
+      return response.status(404).json({ code: "voucher_not_found", error: "Voucher not found." });
+    return response.sendStatus(204);
   });
   app.post(
     "/api/outfits",
@@ -313,4 +329,26 @@ function proxyTrustSetting(value: string | undefined): number | string[] {
         .split(",")
         .map((entry) => entry.trim())
         .filter(Boolean);
+}
+
+function directoryQuery(request: express.Request) {
+  return {
+    search: typeof request.query.search === "string" ? request.query.search : "",
+    page: Number(request.query.page ?? 1),
+    pageSize: Number(request.query.pageSize ?? 20),
+  };
+}
+
+function paginationResponse(result: {
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}) {
+  return {
+    total: result.total,
+    page: result.page,
+    pageSize: result.pageSize,
+    totalPages: result.totalPages,
+  };
 }

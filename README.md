@@ -3,7 +3,7 @@
 > [!IMPORTANT]
 > **This entire repository, including the application, design, tests, documentation, and deployment setup was made with AI.**
 
-Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of individually rendered pieces with descriptive labels. The same service includes a React admin console at `/`, a separate React test studio at `/studio.html`, interactive Swagger API documentation at `/api-docs/`, and a JSON API intended for a future mobile client. Vite compiles the frontend while Express serves the production assets and API.
+Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of individually rendered pieces with descriptive labels. The same service includes a React admin console at `/`, separate user and voucher administration at `/users.html` and `/vouchers.html`, a React test studio at `/studio.html`, interactive Swagger API documentation at `/api-docs/`, and a JSON API intended for a future mobile client. Vite compiles the frontend while Express serves the production assets and API.
 
 ## Screenshots
 
@@ -15,9 +15,11 @@ Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of
 
 The admin navigation links to an interactive Swagger client at `/api-docs/`. Its OpenAPI 3.0 document can also be downloaded as JSON from `/api-docs/openapi.json`. Both routes use the same HTTP Basic protection as the rest of the admin console. The document describes user bearer authentication, administrator authentication, request bodies, responses, error codes, rate-limit headers, and every current endpoint.
 
-Register with `POST /api/auth/register` using a JSON `username` and `password`, then log in through `POST /api/auth/login`. Usernames contain 3–32 lowercase letters, numbers, underscores, or hyphens; passwords contain 8–128 characters. Registration starts in a pending state. An administrator can approve the account directly or generate a single-use approval voucher from `/users.html`.
+Register with `POST /api/auth/register` using a JSON `username` and `password`, then log in through `POST /api/auth/login`. Usernames contain 3–32 lowercase letters, numbers, underscores, or hyphens; passwords contain 8–128 characters. Registration starts in a pending state. An administrator can approve the account directly or generate a single-use approval voucher from `/vouchers.html`.
 
 A logged-in pending user redeems a voucher through `POST /api/auth/vouchers/redeem` with `Authorization: Bearer <token>` and a JSON body such as `{ "voucher": "FC-…" }`. Successful redemption atomically consumes the voucher and approves the account. Invalid vouchers return `400 invalid_voucher`, previously redeemed vouchers return `409 voucher_already_used`, and already-approved accounts return `409 account_already_approved`. The full code is returned only when `POST /api/admin/vouchers` generates it; SQLite stores only its SHA-256 hash and a short prefix for the admin voucher history returned by `GET /api/admin/vouchers`.
+
+The user and voucher admin APIs accept `search`, `page`, and `pageSize` query parameters for SQLite-backed filtering and pagination. The admin pages require confirmation before sending `DELETE /api/admin/users/{id}` or `DELETE /api/admin/vouchers/{id}`. Deleting a user invalidates their sessions and detaches their identity from voucher history while retaining denormalized upload-history metadata.
 
 Login returns a bearer token and the account's approval state. `POST /api/outfits` requires that token in `Authorization: Bearer <token>` and accepts `multipart/form-data` with one `photo` field (JPEG, PNG, WebP, HEIC, or HEIF; maximum 12 MB). Missing or invalid authentication returns `401 authentication_required`; a valid account awaiting approval returns `403 approval_required`.
 

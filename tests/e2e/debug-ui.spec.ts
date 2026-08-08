@@ -23,6 +23,13 @@ test("admin console shows operations, history, and test tooling", async ({ page 
   await expect(page).toHaveURL(/\/users\.html$/);
   await expect(page.getByRole("heading", { name: "User accounts" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "Username" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Vouchers" })).toHaveAttribute(
+    "href",
+    "/vouchers.html",
+  );
+  await expect(page.getByRole("heading", { name: "Approval vouchers" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Vouchers" }).click();
+  await expect(page).toHaveURL(/\/vouchers\.html$/);
   await expect(page.getByRole("heading", { name: "Approval vouchers" })).toBeVisible();
   await page.getByRole("link", { name: "Test studio" }).click();
   await expect(page).toHaveURL(/\/studio\.html$/);
@@ -50,6 +57,9 @@ test("confirms approval and can revoke it from user administration", async ({ pa
   });
   expect(registration.status()).toBe(201);
   await page.goto("/users.html");
+  await page.getByRole("searchbox", { name: "Search users" }).fill("fantasy_user");
+  await page.getByRole("button", { name: "Search" }).click();
+  await expect(page.getByRole("navigation", { name: "Pagination" })).toContainText("1 result");
   const row = page.getByRole("row").filter({ hasText: "fantasy_user" });
   await expect(row.getByText("Pending")).toBeVisible();
   const approveBox = await row.getByRole("button", { name: "Approve" }).boundingBox();
@@ -65,16 +75,38 @@ test("confirms approval and can revoke it from user administration", async ({ pa
   page.once("dialog", (dialog) => dialog.accept());
   await row.getByRole("button", { name: "Revoke approval" }).click();
   await expect(row.getByText("Pending")).toBeVisible();
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await row.getByRole("button", { name: "Delete" }).click();
+  await expect(row).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await row.getByRole("button", { name: "Delete" }).click();
+  await expect(row).toHaveCount(0);
 });
 
-test("generates a single-use approval voucher in user administration", async ({ page }) => {
-  await page.goto("/users.html");
+test("searches, paginates, and safely deletes vouchers on their own page", async ({ page }) => {
+  await page.goto("/vouchers.html");
   await page.getByRole("button", { name: "Generate voucher" }).click();
   const generated = page.locator("#generated-voucher");
   await expect(generated).toHaveText(/^FC-(?:[A-F0-9]{8}-){3}[A-F0-9]{8}$/);
   const prefix = (await generated.textContent())?.slice(0, 11);
+  for (let index = 0; index < 10; index += 1) {
+    expect((await page.request.post("/api/admin/vouchers")).status()).toBe(201);
+  }
+  await page.reload();
+  await expect(page.getByRole("navigation", { name: "Pagination" })).toContainText("Page 1 of 2");
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByRole("navigation", { name: "Pagination" })).toContainText("Page 2 of 2");
+  await page.getByRole("searchbox", { name: "Search vouchers" }).fill(prefix ?? "");
+  await page.getByRole("button", { name: "Search" }).click();
   await expect(page.locator("#voucher-list").getByText(`${prefix}…`)).toBeVisible();
   await expect(page.locator("#voucher-list").getByText("Available").first()).toBeVisible();
+  const row = page.getByRole("row").filter({ hasText: `${prefix}…` });
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await row.getByRole("button", { name: "Delete" }).click();
+  await expect(row).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await row.getByRole("button", { name: "Delete" }).click();
+  await expect(row).toHaveCount(0);
 });
 
 test("shows a crop editor for a browser-readable reference image", async ({ page }) => {
