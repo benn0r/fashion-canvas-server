@@ -18,6 +18,7 @@ export function AdminHeader({ active }: { active: Page }) {
         <a className={active === "studio" ? "active" : undefined} href="/studio.html">
           Test studio
         </a>
+        <a href="/api-docs/">API docs</a>
       </nav>
       <div className="status">
         <i /> System operational

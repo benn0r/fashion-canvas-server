@@ -7,6 +7,7 @@ test("admin console shows operations, history, and test tooling", async ({ page 
   await expect(page.locator('.brand img[src="/app-icon.png"]')).toBeVisible();
   await expect(page.locator('link[rel="icon"][href="/app-icon.png"]')).toHaveCount(1);
   await expect(page.getByRole("navigation").getByRole("link", { name: "Uploads" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "API docs" })).toHaveAttribute("href", "/api-docs/");
   await expect(page.getByText("System operational")).toBeVisible();
   await expect(page.getByText("Recent uploads")).toBeVisible();
   await expect(page.locator("#metric-uploads")).toHaveText(/\d+/);
@@ -30,6 +31,17 @@ test("admin console shows operations, history, and test tooling", async ({ page 
   await expect(page.locator('link[rel="icon"][href="/app-icon.png"]')).toHaveCount(1);
   await expect(page.getByText("OpenAI usage & cost")).toBeAttached();
   await expect(page.getByRole("button", { name: /Create outfit canvas/ })).toBeVisible();
+});
+
+test("serves interactive OpenAPI documentation from the admin navigation", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "API docs" }).click();
+  await expect(page).toHaveURL(/\/api-docs\/$/);
+  await expect(page.getByRole("heading", { name: "Fashion Canvas API" })).toBeVisible();
+  await expect(page.getByText(/OAS 3\.0/)).toBeVisible();
+  await expect(page.getByText("POST", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("/api/outfits", { exact: true })).toBeVisible();
+  await expect(page.locator('link[rel="icon"][href="/app-icon.png"]')).toHaveCount(1);
 });
 
 test("confirms approval and can revoke it from user administration", async ({ page }) => {

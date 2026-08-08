@@ -3,7 +3,7 @@
 > [!IMPORTANT]
 > **This entire repository, including the application, design, tests, documentation, and deployment setup was made with AI.**
 
-Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of individually rendered pieces with descriptive labels. The same service includes a React admin console at `/`, a separate React test studio at `/studio.html`, and a JSON API intended for a future mobile client. Vite compiles the frontend while Express serves the production assets and API.
+Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of individually rendered pieces with descriptive labels. The same service includes a React admin console at `/`, a separate React test studio at `/studio.html`, interactive Swagger API documentation at `/api-docs/`, and a JSON API intended for a future mobile client. Vite compiles the frontend while Express serves the production assets and API.
 
 ## Screenshots
 
@@ -12,6 +12,8 @@ Turn a mirror selfie into a stylized, person-free outfit canvas plus an array of
 ![Fashion Canvas test studio](docs/studio-screenshot.jpg)
 
 ## API
+
+The admin navigation links to an interactive Swagger client at `/api-docs/`. Its OpenAPI 3.0 document can also be downloaded as JSON from `/api-docs/openapi.json`. Both routes use the same HTTP Basic protection as the rest of the admin console. The document describes user bearer authentication, administrator authentication, request bodies, responses, error codes, rate-limit headers, and every current endpoint.
 
 Register with `POST /api/auth/register` using a JSON `username` and `password`, then log in through `POST /api/auth/login`. Usernames contain 3–32 lowercase letters, numbers, underscores, or hyphens; passwords contain 8–128 characters. Registration starts in a pending state. An administrator can approve the account directly or generate a single-use approval voucher from `/users.html`.
 

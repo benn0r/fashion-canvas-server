@@ -63,6 +63,8 @@ test("protects admin pages and operational APIs with HTTP Basic Auth", async () 
     "/",
     "/studio.html",
     "/users.html",
+    "/api-docs/",
+    "/api-docs/openapi.json",
     "/api/admin/uploads",
     "/api/admin/users",
     "/api/admin/vouchers",
@@ -81,6 +83,24 @@ test("protects admin pages and operational APIs with HTTP Basic Auth", async () 
   assert.equal((await request(app).get("/account.html")).status, 404);
   assert.equal((await request(app).post("/api/outfits")).status, 401);
   assert.equal((await request(app).post("/api/admin/vouchers")).status, 401);
+
+  const documentation = await request(app).get("/api-docs/").auth("test-admin", "test-password");
+  assert.equal(documentation.status, 200);
+  assert.match(documentation.text, /Fashion Canvas API/);
+  const specification = await request(app)
+    .get("/api-docs/openapi.json")
+    .auth("test-admin", "test-password");
+  assert.equal(specification.status, 200);
+  assert.equal(specification.body.openapi, "3.0.3");
+  assert.equal(specification.body.info.title, "Fashion Canvas API");
+  assert.ok(specification.body.paths["/api/auth/vouchers/redeem"].post);
+  assert.equal(
+    specification.body.paths["/api/outfits"].post.requestBody.content["multipart/form-data"].schema
+      .properties.photo.format,
+    "binary",
+  );
+  assert.equal(specification.body.components.securitySchemes.userBearer.scheme, "bearer");
+  assert.equal(specification.body.components.securitySchemes.adminBasic.scheme, "basic");
   database.close();
 });
 

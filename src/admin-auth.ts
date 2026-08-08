@@ -46,6 +46,7 @@ function isProtectedPath(pathname: string) {
     pathname === "/index.html" ||
     pathname === "/studio.html" ||
     pathname === "/users.html" ||
+    pathname.startsWith("/api-docs") ||
     pathname.startsWith("/api/admin/") ||
     pathname.startsWith("/api/debug/")
   );

@@ -1,6 +1,7 @@
 import express from "express";
 import helmet from "helmet";
 import multer from "multer";
+import swaggerUi from "swagger-ui-express";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { logError, logEvent } from "./log.js";
@@ -8,6 +9,7 @@ import { UploadRateLimiter } from "./rate-limit.js";
 import type { OutfitResult } from "./types.js";
 import { AppDatabase } from "./database.js";
 import { adminAuth, loadAdminCredentials, type AdminCredentials } from "./admin-auth.js";
+import { openApiDocument } from "./openapi.js";
 import {
   createSession,
   generateVoucherCode,
@@ -55,6 +57,18 @@ export function createApp(
   app.use(adminAuth(adminCredentials));
   const publicDirectory = path.resolve(process.cwd(), "public");
   app.use(express.static(publicDirectory));
+  app.get("/api-docs/openapi.json", (_request, response) => response.json(openApiDocument));
+  app.use(
+    "/api-docs",
+    swaggerUi.serve,
+    swaggerUi.setup(openApiDocument, {
+      customSiteTitle: "Fashion Canvas API",
+      customfavIcon: "/app-icon.png",
+      customCss:
+        ".swagger-ui .topbar { display: none } .swagger-ui .info .title { font-family: Georgia, serif }",
+      swaggerOptions: { displayRequestDuration: true, persistAuthorization: true },
+    }),
+  );
 
   app.use(["/api/auth", "/api/outfits"], (request, response, next) => {
     response.setHeader("Access-Control-Allow-Origin", "*");
